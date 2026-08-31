@@ -10,13 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Full history: the change-discipline check diffs against a base ref.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload fresh-clone offline evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fresh-clone-offline-check
           path: Data/test_tmp/fresh_clone_offline_check.json
@@ -114,7 +114,7 @@ jobs:
 
       - name: Upload frontend coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage
           path: frontend-react/coverage
@@ -150,13 +150,13 @@ jobs:
       # runs every test file, which is the kind of invisible gap this job exists
       # to catch. A real `git clone` has full history anyway, so this is also
       # closer to the fresh checkout the job is simulating.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
       # uv creates the environment; `.venv/bin` then goes on PATH so every
@@ -176,7 +176,7 @@ jobs:
       # encoder is fetched once here, with the offline flags lifted for this
       # step only; the test run below still executes fully offline.
       - name: Cache Hugging Face encoders
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
           key: hf-safety-encoders-${{ hashFiles('config/dep001*_semantic_safety.yaml') }}
@@ -204,7 +204,7 @@ jobs:
 
       - name: Upload safety provisioning evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: semantic-safety-provisioning
           path: Data/test_tmp/semantic_safety_provisioning.json
@@ -240,7 +240,7 @@ jobs:
 
       - name: Upload derived artifact provisioning evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: derived-artifact-provisioning
           path: Data/test_tmp/derived_artifact_provisioning.json
@@ -278,7 +278,7 @@ jobs:
 
       - name: Upload full-suite hermetic evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fresh-clone-full-suite
           path: Data/test_tmp/fresh_clone_full_suite.json
@@ -298,8 +298,8 @@ jobs:
       TRANSFORMERS_OFFLINE: "1"
       RAG_FORCE_SPARSE: "true"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Sync frozen Python environment
@@ -316,11 +316,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
@@ -353,15 +353,15 @@ jobs:
       RAG_ENABLE_CROSS_ENCODER: "false"
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm
@@ -378,7 +378,7 @@ jobs:
       # though this job does not set the offline flags. Without it the safety
       # eval scripts below run against fail-closed defaults.
       - name: Cache Hugging Face encoders
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/huggingface
           key: hf-safety-encoders-${{ hashFiles('config/dep001*_semantic_safety.yaml') }}
@@ -501,7 +501,7 @@ jobs:
     needs: quality-gates
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build backend Docker image
         run: docker build -t medical-agent:ci .
