@@ -52,3 +52,63 @@ def test_typed_request_bodies_publish_a_schema() -> None:
     typed = [row for row in inventory if row["classification"] == "typed_request_body"]
     assert typed
     assert all(row["request_schema"] for row in typed)
+
+
+# --- a body must be a declared model, not merely a body ----------------------
+
+
+def _component_schemas() -> set[str]:
+    return set(app.openapi().get("components", {}).get("schemas", {}))
+
+
+def test_every_request_body_resolves_to_a_declared_model() -> None:
+    """`request_schema` being truthy is not the same as being typed.
+
+    `_schema_name` falls back to the raw JSON Schema `type` when an operation
+    publishes no `$ref`, so a handler declared `payload: dict = Body(...)`
+    yields `"object"` - classified `typed_request_body`, carrying a non-empty
+    `request_schema`, and therefore passing every other assertion in this file
+    while validating nothing at the boundary.
+
+    The distinction that matters is whether the name resolves to a component
+    schema, because only a declared model produces one. All 58 current bodies
+    do; this fails on the first one that does not.
+    """
+    inventory = build_mutating_boundary_inventory(app.openapi())
+    declared = _component_schemas()
+
+    untyped = [
+        (row["method"], row["path"], row["request_schema"])
+        for row in inventory
+        if row["classification"] == "typed_request_body" and row["request_schema"] not in declared
+    ]
+    assert not untyped, (
+        "body-bearing endpoints without a declared request model: "
+        + "; ".join(f"{m} {p} (schema={s!r})" for m, p, s in untyped)
+    )
+
+
+def test_an_untyped_body_would_be_detected() -> None:
+    """The guard above is only worth having if it can fail.
+
+    A hand-built document standing in for `payload: dict = Body(...)`: a real
+    request body whose schema is inline rather than a component reference.
+    """
+    document = {
+        "paths": {
+            "/admin/untyped-probe": {
+                "post": {
+                    "requestBody": {
+                        "content": {"application/json": {"schema": {"type": "object"}}}
+                    }
+                }
+            }
+        },
+        "components": {"schemas": {}},
+    }
+    inventory = build_mutating_boundary_inventory(document)
+    row = inventory[0]
+
+    assert row["classification"] == "typed_request_body"
+    assert row["request_schema"] == "object"
+    assert row["request_schema"] not in set(document["components"]["schemas"])
