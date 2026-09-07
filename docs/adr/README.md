@@ -23,6 +23,7 @@ sequential number — never reuse a number even after deprecation.
 | 0008 | [Composer "+" attachment popover replaces 8-chip tray](0008-composer-attachment-popover.md) | accepted |
 | 0009 | [Source-alias normalisation for the frozen retrieval goldset](0009-source-alias-normalization.md) | accepted |
 | 0010 | [Separate SaaS control plane from the synthetic patient demo](0010-saas-control-plane-boundary.md) | accepted |
+| 0011 | [models.py split, and two files that stay over the limit](0011-model-module-split-and-size-exemptions.md) | accepted |
 
 ## When to write a new ADR
 

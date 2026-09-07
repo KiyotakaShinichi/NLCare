@@ -769,6 +769,9 @@ Open http://localhost:5173. The React API client calls http://127.0.0.1:8017 dir
 | `npm run dev` | Start Vite dev server on port 5173 |
 | `npm run build` | Type-check and build to `dist/` |
 | `npm run lint` | Run frontend lint checks |
+| `npm run typecheck` | Type-check both tsconfig projects without emitting |
+| `npm run test` | Run the Vitest unit suite (33 files, 301 tests) |
+| `npm run test:coverage` | Same suite with the coverage thresholds in `vitest.config.ts` enforced |
 | `npm run test:e2e` | Run Playwright smoke tests for login, patient, clinician, admin, and route guards |
 | `npm run preview` | Serve the production build locally |
 
