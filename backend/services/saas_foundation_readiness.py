@@ -22,9 +22,9 @@ CLAIM_BOUNDARY = (
 def build_saas_foundation_readiness(*, root: str | Path = ROOT) -> dict[str, Any]:
     repo = Path(root).resolve()
     checks = [
-        _contains(repo / "backend/models.py", "class SaaSOrganization", "tenant_schema_defined"),
-        _contains(repo / "backend/models.py", "class SaaSMembership", "membership_schema_defined"),
-        _contains(repo / "backend/models.py", "class SaaSUsageEvent", "append_only_usage_ledger_defined"),
+        _contains(repo / "backend/models_saas.py", "class SaaSOrganization", "tenant_schema_defined"),
+        _contains(repo / "backend/models_saas.py", "class SaaSMembership", "membership_schema_defined"),
+        _contains(repo / "backend/models_saas.py", "class SaaSUsageEvent", "append_only_usage_ledger_defined"),
         _contains(repo / "backend/services/saas_control_plane.py", "require_membership", "tenant_scope_enforced"),
         _contains(repo / "backend/services/saas_control_plane.py", "idempotency_key", "idempotency_contract_defined"),
         _contains(repo / "backend/services/saas_job_worker.py", "lease_expires_at", "leased_job_worker_defined"),

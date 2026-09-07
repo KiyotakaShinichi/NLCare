@@ -3,7 +3,7 @@
   "files": {
     "backend/api/routers/model.py": 715,
     "backend/api/routers/patient.py": 725,
-    "backend/models.py": 854,
+    "backend/models.py": 552,
     "backend/processing/clinical_summary.py": 791,
     "backend/services/ai_trinity_tradeoff.py": 530,
     "backend/services/biomarker_feature_benchmark.py": 627,
