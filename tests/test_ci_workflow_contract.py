@@ -176,6 +176,7 @@ def test_downstream_jobs_depend_on_the_gates() -> None:
         "fresh-clone-smoke",
         "ml-regression",
         "dependency-audit",
+        "offline-smoke",
     ):
         assert required in needs, f"docker-build does not wait for {required}"
 
@@ -360,3 +361,57 @@ def test_ml_regression_asserts_real_metrics() -> None:
     )
     assert "SEED" in suite and "REPEATED_SPLIT_SEEDS" in suite
     assert "classification_auroc" in suite, "no metric threshold is exercised"
+
+
+# ─── the offline smoke: no network, no model, no credentials ─────────────────
+
+
+def _offline_steps() -> list[str]:
+    job = _workflow()["jobs"]["offline-smoke"]
+    return [str(step.get("run") or "") for step in job.get("steps", [])]
+
+
+def _first(steps: list[str], needle: str) -> int:
+    return next(i for i, run in enumerate(steps) if needle in run)
+
+
+def test_the_offline_smoke_job_exists() -> None:
+    assert "offline-smoke" in _workflow()["jobs"]
+
+
+def test_the_offline_smoke_cuts_the_network_after_install_and_before_everything_else() -> None:
+    """Order is the whole claim: install online, then nothing else is."""
+    steps = _offline_steps()
+    install = _first(steps, "uv sync --frozen")
+    cut = _first(steps, "iptables -P OUTPUT DROP")
+    provision = _first(steps, "provision_derived_artifacts.py")
+    tests = _first(steps, "python -m pytest")
+    assert install < cut < provision < tests
+
+
+def test_the_offline_smoke_blocks_ipv6_too() -> None:
+    assert _first(_offline_steps(), "ip6tables -P OUTPUT DROP") >= 0
+
+
+def test_the_offline_smoke_proves_the_block_before_relying_on_it() -> None:
+    """A rule that silently failed to apply would make every later step vacuous."""
+    steps = _offline_steps()
+    proof = _first(steps, "curl")
+    assert _first(steps, "iptables -P OUTPUT DROP") < proof < _first(steps, "python -m pytest")
+    assert "exit 1" in steps[proof]
+
+
+def test_the_offline_smoke_starts_from_an_empty_model_cache() -> None:
+    steps = _offline_steps()
+    cache = steps[_first(steps, "empty-model-cache")]
+    for variable in ("HF_HOME", "HF_HUB_CACHE", "SENTENCE_TRANSFORMERS_HOME"):
+        assert variable in cache, f"{variable} could still resolve to a populated cache"
+
+
+def test_the_offline_smoke_never_downloads_the_encoder() -> None:
+    """Provisioning the model would turn a zero-model proof into a normal run."""
+    assert not any("provision_semantic_safety_encoders" in run for run in _offline_steps())
+
+
+def test_the_offline_smoke_asserts_fail_closed_behaviour() -> None:
+    assert "tests/test_safety_runtime_empty_cache.py" in "\n".join(_offline_steps())

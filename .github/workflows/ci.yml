@@ -272,9 +272,90 @@ jobs:
           npm ci
           npm audit --audit-level=high
 
+  # Zero network, zero model, zero credentials. fresh-clone-smoke proves the
+  # complete suite with the semantic-safety encoder provisioned; this proves what
+  # a buyer gets from the lockfile alone. Dependencies install while the network
+  # is up, then every outbound packet is dropped *at the kernel* and every model
+  # cache points at an empty directory. The socket guard in tests/conftest.py
+  # only covers the pytest process; iptables also covers every subprocess the
+  # tests and provisioning scripts spawn.
+  #
+  # With no encoder the semantic-safety layer must fail closed, and
+  # test_safety_runtime_empty_cache.py asserts exactly that. The other suites
+  # prove the application still boots, serves /health and /ready, authenticates,
+  # validates requests, and logs structurally. The safety suites that assert
+  # classification behaviour need the real model and run in fresh-clone-smoke;
+  # a stand-in encoder would satisfy loading while destroying classification.
+  offline-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ENVIRONMENT: test
+      NLCARE_TEST_OFFLINE: "true"
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+      RAG_FORCE_SPARSE: "true"
+      RAG_ENABLE_CROSS_ENCODER: "false"
+      LLM_ADJUDICATION_ENABLED: "false"
+      DATABASE_URL: sqlite:///./Data/test_tmp/offline_smoke.db
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Sync frozen Python environment (the only networked step)
+        run: |
+          python -m pip install uv==0.8.24
+          uv sync --frozen
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+      - name: Point every model cache at an empty directory
+        run: |
+          EMPTY="$RUNNER_TEMP/empty-model-cache"
+          mkdir -p "$EMPTY"
+          for var in HF_HOME HF_HUB_CACHE HUGGINGFACE_HUB_CACHE TRANSFORMERS_CACHE SENTENCE_TRANSFORMERS_HOME; do
+            echo "$var=$EMPTY" >> "$GITHUB_ENV"
+          done
+      - name: Drop all outbound network at the kernel
+        run: |
+          sudo iptables -A OUTPUT -o lo -j ACCEPT
+          sudo iptables -P OUTPUT DROP
+          sudo ip6tables -A OUTPUT -o lo -j ACCEPT
+          sudo ip6tables -P OUTPUT DROP
+      - name: Prove the network is actually down
+        run: |
+          if curl --silent --max-time 10 https://pypi.org/simple/ > /dev/null; then
+            echo "outbound HTTPS is still reachable; this job would prove nothing"
+            exit 1
+          fi
+          if python -c "import socket; socket.create_connection(('1.1.1.1', 443), timeout=5)"; then
+            echo "raw outbound TCP is still reachable"
+            exit 1
+          fi
+          echo "outbound network is down"
+      - name: Rebuild derived artifacts with the network down
+        run: |
+          mkdir -p Data/test_tmp
+          python scripts/provision_derived_artifacts.py
+          python scripts/provision_derived_artifacts.py --check-only
+      - name: Offline smoke (no network, no model, no credentials)
+        run: |
+          python -m pytest \
+            tests/test_hermetic_network_contract.py \
+            tests/test_safety_runtime_empty_cache.py \
+            tests/test_health_endpoint.py \
+            tests/test_operational_endpoints.py \
+            tests/test_auth_demo_environment_gate.py \
+            tests/test_access_control.py \
+            tests/test_api_input_validation_boundaries.py \
+            tests/test_structured_logging.py \
+            tests/test_runtime_observability.py \
+            tests/test_constants_sync.py \
+            tests/test_safety_eval_center.py \
+            -q
+
   docker-build:
     runs-on: ubuntu-latest
-    needs: [static-quality, fresh-clone-smoke, ml-regression, dependency-audit]
+    needs: [static-quality, fresh-clone-smoke, ml-regression, dependency-audit, offline-smoke]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
