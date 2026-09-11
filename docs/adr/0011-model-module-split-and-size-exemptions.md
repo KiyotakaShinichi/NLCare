@@ -1,6 +1,6 @@
 # 0011 — models.py split, and two files that stay over the limit
 
-**Status**: accepted
+**Status**: accepted; the `dep001b_safety_corpus.py` decision is superseded by [ADR 0012](0012-corpus-generator-split.md)
 **Date**: 2026-09
 
 ## Context
@@ -38,6 +38,11 @@ Neither extracted module describes a person, which is the test applied to
 decide what moved. `backend.models` re-exports every moved class, so the 112
 importing modules are untouched and importing the facade still registers all
 44 tables on `Base.metadata`.
+
+> **Superseded by [ADR 0012](0012-corpus-generator-split.md).** The premise of
+> the next paragraph is wrong: the output paths are call-time module globals,
+> so the generator can be run into a temporary tree, and it reproduces the
+> frozen banks byte for byte. It is kept here as the decision that was made.
 
 **Do not split `backend/services/dep001b_safety_corpus.py`.** Its output
 location is not a parameter: `build_corpora` writes the four safety banks and

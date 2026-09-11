@@ -95,6 +95,12 @@ What this means:
   source changed - `tests/test_dep001b_corpus_reproducibility.py` regenerates
   them and compares byte for byte.
 
+Since this disclosure was written, `dep001b_safety_corpus.py` has also been
+split: its vocabulary and case renderers moved verbatim to
+`backend/services/dep001b_corpus_language.py` (ADR 0012). That module is not in
+the freeze either. What pins the generator to the frozen banks now is the
+reproducibility test, not the freeze.
+
 `tests/test_dep001b_freeze_drift_disclosure.py` pins this list. A change to a
 frozen artifact that still matches fails that test until it is disclosed here.
 Digests are compared across line-ending forms, because the manifest recorded

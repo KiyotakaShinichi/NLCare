@@ -18,7 +18,6 @@
     "backend/services/dep001_safety_evaluation.py": 572,
     "backend/services/dep001a_safety_corpus.py": 702,
     "backend/services/dep001a_semantic_safety_training.py": 594,
-    "backend/services/dep001b_safety_corpus.py": 795,
     "backend/services/dep001b_semantic_safety_training.py": 511,
     "backend/services/dep001d_training.py": 684,
     "backend/services/detailed_training_report.py": 710,
