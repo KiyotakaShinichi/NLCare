@@ -28,6 +28,11 @@ them; it does not refresh or rewrite them.
   genetic risk/VUS or tumor markers as conclusions, or replace a care team.
 - DEP-001 official external evidence contains genuine safety failures. A fresh,
   independently authored no-read evaluation is the only legitimate replacement.
+- The DEP-001B candidate freeze (2026-08-13) no longer matches `main` for 10 of
+  its 26 artifacts: one recorded fixture incident and nine later source and
+  configuration changes, including the runtime safety modules. For those files
+  `main` is not the evaluated candidate. See
+  `docs/dep001_safety_release_architecture.md`.
 - The project has a single-human-author history and no represented customers,
   users, revenue, hospital partners, or production outcomes.
 - RAG evidence remains mostly internal/in-sample; held-out v2 and adjudication
