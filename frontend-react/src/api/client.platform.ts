@@ -1,5 +1,5 @@
 import type * as Api from "../types/api";
-import { BASE, del, get, getToken, post, request, responseError } from "./client.transport";
+import { BASE, del, get, getToken, post, reportRequestFailure, request, responseError } from "./client.transport";
 
 export const getPlatformSession = () =>
   get<Api.SaaSPlatformSession>("/platform/session");
@@ -63,17 +63,24 @@ export const logout = () =>
 
 export async function getAuthenticatedObjectUrl(path: string): Promise<string> {
   const token = getToken();
-  const res = await fetch(`${BASE}${path}`, {
-    headers: {
-      "X-NLCare-Data-Class": "synthetic",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw await responseError(res);
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      headers: {
+        "X-NLCare-Data-Class": "synthetic",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      throw await responseError(res);
+    }
+    return URL.createObjectURL(await res.blob());
+  } catch (error) {
+    // Callers show a generic "Preview unavailable" and swallow the error, so
+    // this is the only place the failure can be recorded.
+    reportRequestFailure(error, { method: "GET", path, surface: "api.object-url" });
+    throw error;
   }
-  return URL.createObjectURL(await res.blob());
 }
 
 // Patient

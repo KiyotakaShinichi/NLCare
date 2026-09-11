@@ -1,5 +1,5 @@
 import type * as Api from "../types/api";
-import { BASE, del, get, getToken, post, responseError } from "./client.transport";
+import { BASE, del, get, getToken, post, reportRequestFailure, responseError } from "./client.transport";
 
 
 export const getMyReport = () => get<Api.PatientReport>("/me/patient-report");
@@ -88,13 +88,17 @@ async function streamChat(
     }
     return finalAnswer;
   } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(
-        "The support response timed out. Please try again; no record was saved by this timed-out turn.",
-        { cause: error },
-      );
-    }
-    throw error;
+    const failure =
+      error instanceof DOMException && error.name === "AbortError"
+        ? new Error(
+            "The support response timed out. Please try again; no record was saved by this timed-out turn.",
+            { cause: error },
+          )
+        : error;
+    // The stream bypasses `request`, so it reports for itself. The chat
+    // message is a patient's own words and is never attached.
+    reportRequestFailure(failure, { method: "POST", path, surface: "api.stream" });
+    throw failure;
   } finally {
     window.clearTimeout(timeoutId);
   }

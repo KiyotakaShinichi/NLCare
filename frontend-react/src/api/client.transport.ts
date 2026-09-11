@@ -61,6 +61,32 @@ export function getToken(): string | null {
   );
 }
 
+/**
+ * Report a failed backend call once, at the network boundary.
+ *
+ * `request` is not the only path to the backend. Streamed chat reads a
+ * `ReadableStream` and authenticated previews read a `Blob`, so both need a raw
+ * `fetch` - and before this helper neither reported anything: a failed patient
+ * chat turn reached no telemetry sink at all. Every path calls this, so
+ * classification (4xx expected, everything else unexpected) and route redaction
+ * are identical everywhere. `method` and `path` are safe to record; a request
+ * body never is, and is never passed in.
+ */
+export function reportRequestFailure(
+  error: unknown,
+  { method, path, surface }: { method: string; path: string; surface: string },
+): void {
+  reportError(error, {
+    surface,
+    kind: error instanceof ApiError && error.isExpected ? "expected" : "unexpected",
+    detail: {
+      method,
+      route: redactUrlPath(path),
+      status: error instanceof ApiError ? error.status : undefined,
+    },
+  });
+}
+
 export async function request<T>(
   method: string,
   path: string,
@@ -90,17 +116,7 @@ export async function request<T>(
       return res.json() as Promise<T>;
     })
     .catch((error: unknown) => {
-      // Report once, here, at the network boundary. `path` and `method` are
-      // safe to record; the request body is not and is never attached.
-      reportError(error, {
-        surface: "api.request",
-        kind: error instanceof ApiError && error.isExpected ? "expected" : "unexpected",
-        detail: {
-          method,
-          route: redactUrlPath(path),
-          status: error instanceof ApiError ? error.status : undefined,
-        },
-      });
+      reportRequestFailure(error, { method, path, surface: "api.request" });
       throw error;
     })
     .finally(() => {

@@ -1,5 +1,8 @@
 import { useCallback, useState } from "react";
 
+import { ApiError } from "../api/client.transport";
+import { reportError } from "../lib/telemetry";
+
 /**
  * Tiny, reusable submit-lifecycle hook for the tool forms.
  *
@@ -52,8 +55,12 @@ export function useToolForm<TResult = unknown>(
           ? error.message
           : "Could not save. Please try again.";
       setSubmitError(friendly);
-      if (import.meta.env?.DEV) {
-        console.error("[useToolForm] submit failed:", error);
+      // An ApiError was already reported by the transport; reporting it here
+      // would count one failed save twice. Anything else - a file that could
+      // not be encoded, a local exception before the request - never reached
+      // the transport, and until now was only logged in development.
+      if (!(error instanceof ApiError)) {
+        reportError(error, { surface: "tool-form.submit" });
       }
     } finally {
       setSubmitting(false);
