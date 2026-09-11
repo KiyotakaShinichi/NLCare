@@ -13,7 +13,6 @@
     "backend/services/cost_latency_observability.py": 649,
     "backend/services/credibility_gap_registry.py": 517,
     "backend/services/data_platform_pipeline.py": 562,
-    "backend/services/deep_learning_candidate_benchmark.py": 762,
     "backend/services/dep001_external_evaluation.py": 696,
     "backend/services/dep001_safety_evaluation.py": 572,
     "backend/services/dep001a_safety_corpus.py": 702,
