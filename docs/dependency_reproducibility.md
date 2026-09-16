@@ -78,7 +78,7 @@ uv sync --frozen --python 3.14
 Syncing first is the whole procedure, not a precaution. The snapshot previously
 drifted for five weeks because it was refreshed from whatever happened to be
 installed on one machine: it pinned a pypdf the September advisory fix had
-already replaced, and omitted twenty-three packages the lockfile resolves.
+already replaced, and omitted twenty-two packages the lockfile resolves.
 `tests/test_windows_dependency_lock_reconciliation.py` now fails if the snapshot
 disagrees with `uv.lock`, if it pins something the lockfile does not resolve, if
 it omits something the lockfile does resolve, or if it has been edited by hand.

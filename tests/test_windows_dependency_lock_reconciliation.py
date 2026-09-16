@@ -17,7 +17,7 @@ inventory, so the scan reported
   * one transformers advisory fixed seven minor versions before the locked one,
 
 none of which belonged to any dependency set the project actually resolves,
-while twenty-three packages present in the contract - `python-json-logger`,
+while twenty-two packages present in the contract - `python-json-logger`,
 `ruff`, `mypy`, `pip-audit`, `coverage` among them - were absent from the
 snapshot entirely and therefore could not have been reported at all. A stale
 inventory invents findings and hides them in the same breath.

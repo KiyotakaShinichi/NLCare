@@ -83,7 +83,7 @@ def _export_canonical_resolution(workspace: Path) -> Path | None:
     `requirements-lock-py314-win.txt` went five weeks without one and reported
     three pypdf advisories the project had already upgraded away from, a pip
     advisory fixed in the locked pip, and a transformers advisory fixed seven
-    minor versions earlier - while silently omitting twenty-three packages it
+    minor versions earlier - while silently omitting twenty-two packages it
     had never been told about, so a real advisory in any of them would not have
     been reported at all.
 
