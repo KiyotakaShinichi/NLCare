@@ -38,21 +38,44 @@ export default defineConfig({
       /**
        * Regression gate, not a target.
        *
-       * Measured on 2026-08-30 after the R3 critical-path reliability suite:
-       * 49.79% statements, 67.54% branches, 43.95% functions, 49.79% lines.
-       * Each threshold sits several points below its
-       * measured value so ordinary churn and v8's slight run-to-run variance
-       * cannot redden CI, while a real drop — someone deleting a suite or
-       * landing a large untested surface — still fails the build.
+       * Re-measured on 2026-09-16 on vitest 4's metric basis. The numbers below
+       * are NOT a relaxation of the previous gate: they are the same gate
+       * expressed in a different unit.
+       *
+       * vitest 3.2.7 -> 4.1.11 was forced by GHSA-82fw-gwwq-j7x9 (path
+       * traversal via @vitest/mocker, fixed in 4.1.11, no 3.x backport). v4
+       * makes AST-aware remapping the default for the v8 provider and offers no
+       * opt-out, so the same 320 tests over the same source are now counted
+       * against different denominators:
+       *
+       *   statements  14459 -> 3752      branches  2014 -> 4688
+       *   functions     596 -> 1191      (lines similar)
+       *
+       * Measured before (vitest 3): 49.79% statements, 67.54% branches,
+       * 43.95% functions, 49.79% lines.
+       * Measured after  (vitest 4): 50.61% statements, 36.47% branches,
+       * 37.95% functions, 52.55% lines.
+       *
+       * Statements and lines went *up*; branches and functions fell only
+       * because v4 counts far more of them (optional chaining, default
+       * parameters, and short-circuits each became branches). No test was
+       * deleted, weakened, or excluded - the suite is byte-identical across the
+       * upgrade and still passes 320/320.
+       *
+       * Each threshold keeps the previous convention: roughly four points below
+       * its measured value, so ordinary churn and v8's run-to-run variance
+       * cannot redden CI while a real drop still fails the build.
        *
        * Raise these when coverage genuinely improves. Do not lower one to make
-       * a failing build pass; that converts the gate into decoration.
+       * a failing build pass; that converts the gate into decoration. Lowering
+       * is legitimate only when the metric itself is redefined under you, as
+       * here, and only with the measurement recorded alongside it.
        */
       thresholds: {
         statements: 46,
-        branches: 64,
-        functions: 40,
-        lines: 46,
+        branches: 32,
+        functions: 33,
+        lines: 48,
       },
     },
   },
