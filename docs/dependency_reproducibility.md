@@ -60,17 +60,40 @@ To add or change a dependency: edit `pyproject.toml`, run `uv lock`, and commit
 the lockfile. There is no second file to mirror it into.
 
 
-The generated `requirements-lock-py314-win.txt` remains a historical snapshot
-of the known-good CPython 3.14 Windows engineering environment, together with
-its interpreter/platform fingerprint. Refresh and audit it only from that
-environment:
+## The Windows engineering snapshot
+
+`requirements-lock-py314-win.txt` records the known-good CPython 3.14 Windows
+engineering environment together with its interpreter/platform fingerprint. It
+is a snapshot of installed distributions, not a second dependency contract:
+`uv.lock` is still the only place a version is decided.
+
+Because it records what is *installed*, it is only meaningful if the environment
+it is taken from is the locked one. Refresh it from Windows, and sync first:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\run_dependency_lock_audit.py --refresh-transitive-lock
+uv sync --frozen --python 3.14
+.\.venv\Scripts\python.exe -c "from backend.services.dependency_lock_audit import write_environment_transitive_lock as w; w()"
 ```
 
-The audit reports direct-lock drift, transitive graph drift, missing or extra
-distributions, the lock SHA-256, and an environment-fingerprint mismatch.
+Syncing first is the whole procedure, not a precaution. The snapshot previously
+drifted for five weeks because it was refreshed from whatever happened to be
+installed on one machine: it pinned a pypdf the September advisory fix had
+already replaced, and omitted twenty-three packages the lockfile resolves.
+`tests/test_windows_dependency_lock_reconciliation.py` now fails if the snapshot
+disagrees with `uv.lock`, if it pins something the lockfile does not resolve, if
+it omits something the lockfile does resolve, or if it has been edited by hand.
+
+`scripts/run_dependency_lock_audit.py --refresh-transitive-lock` performs the
+same refresh and additionally writes
+`Data/evals/ops/latest_dependency_lock_audit.json`, reporting direct-lock drift,
+transitive graph drift, missing or extra distributions, the lock SHA-256, and an
+environment-fingerprint mismatch. Use it when that evidence artifact is meant to
+be regenerated; use the two commands above when only the snapshot is.
+
+Vulnerability scanning does not read this file.
+`scripts/run_dependency_security_scan.py` resolves `uv.lock` with
+`uv export --frozen` and audits that, identically on every platform, so the scan
+measures the declared contract rather than the age of a checked-in snapshot.
 
 The Windows snapshot is intentionally platform-scoped and is not the CI lock.
 Run dependency and container audits separately; a reproducible graph is not a

@@ -5,6 +5,7 @@ import json
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -16,15 +17,16 @@ OUTPUT = ROOT / "Data/evals/ops/latest_dependency_security_scan.json"
 
 def main() -> int:
     checks = []
-    python_audit = _python_audit_command()
-    checks.append(
-        _run_optional_tool(
-            python_audit[0] if python_audit else "pip-audit",
-            python_audit[1] if python_audit else [],
-            "python_dependencies",
-            scan_scope=python_audit[2] if python_audit else "unavailable",
+    with tempfile.TemporaryDirectory() as workspace:
+        python_audit = _python_audit_command(_export_canonical_resolution(Path(workspace)))
+        checks.append(
+            _run_optional_tool(
+                python_audit[0] if python_audit else "pip-audit",
+                python_audit[1] if python_audit else [],
+                "python_dependencies",
+                scan_scope=python_audit[2] if python_audit else "unavailable",
+            )
         )
-    )
     npm_cmd = "npm.cmd" if shutil.which("npm.cmd") else "npm"
     checks.append(
         _run_optional_tool(
@@ -72,7 +74,52 @@ def main() -> int:
     return 0
 
 
-def _python_audit_command() -> tuple[str, list[str], str] | None:
+def _export_canonical_resolution(workspace: Path) -> Path | None:
+    """Resolve the committed lockfile for the running interpreter and platform.
+
+    The vulnerability inventory has to be the dependency set the project
+    actually declares. Auditing a checked-in environment snapshot instead makes
+    the result depend on when someone last refreshed that snapshot by hand:
+    `requirements-lock-py314-win.txt` went five weeks without one and reported
+    three pypdf advisories the project had already upgraded away from, a pip
+    advisory fixed in the locked pip, and a transformers advisory fixed seven
+    minor versions earlier - while silently omitting twenty-three packages it
+    had never been told about, so a real advisory in any of them would not have
+    been reported at all.
+
+    `uv export --frozen` reads `uv.lock` and never resolves over the network.
+    It emits environment markers, which pip-audit evaluates for the running
+    platform, so Windows and Linux audit one contract rather than two. The
+    `dependency-audit` job in `.github/workflows/ci.yml` builds its inventory
+    the same way.
+    """
+    uv = shutil.which("uv")
+    if uv is None:
+        return None
+    resolved = workspace / "canonical-resolution.txt"
+    try:
+        result = subprocess.run(
+            [
+                uv,
+                "export",
+                "--frozen",
+                "--no-hashes",
+                "--no-emit-project",
+                "--quiet",
+                "--output-file",
+                str(resolved),
+            ],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+    except Exception:  # noqa: BLE001
+        return None
+    return resolved if result.returncode == 0 and resolved.exists() else None
+
+
+def _python_audit_command(resolved: Path | None) -> tuple[str, list[str], str] | None:
     executable = shutil.which("pip-audit")
     prefix = [executable] if executable else None
     if prefix is None and importlib.util.find_spec("pip_audit") is not None:
@@ -80,22 +127,15 @@ def _python_audit_command() -> tuple[str, list[str], str] | None:
         prefix = [sys.executable, "-m", "pip_audit"]
     if prefix is None or executable is None:
         return None
-
-    platform_lock = ROOT / "requirements-lock-py314-win.txt"
-    if sys.platform == "win32" and platform_lock.exists():
+    if resolved is not None:
         return (
             executable,
-            [
-                *prefix,
-                "-r",
-                str(platform_lock),
-                "--no-deps",
-                "--disable-pip",
-                "-f",
-                "json",
-            ],
-            "requirements-lock-py314-win.txt",
+            [*prefix, "-r", str(resolved), "--no-deps", "--disable-pip", "-f", "json"],
+            "canonical_resolution",
         )
+    # Without uv the lockfile cannot be resolved here. Audit the live
+    # environment rather than a file on disk that may describe a different one;
+    # the scope is recorded so the artifact says which of the two was measured.
     return executable, [*prefix, "-f", "json"], "installed_environment"
 
 
