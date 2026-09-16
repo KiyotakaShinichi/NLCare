@@ -288,7 +288,7 @@ jobs:
   # a stand-in encoder would satisfy loading while destroying classification.
   offline-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     env:
       ENVIRONMENT: test
       NLCARE_TEST_OFFLINE: "true"
@@ -315,43 +315,45 @@ jobs:
           for var in HF_HOME HF_HUB_CACHE HUGGINGFACE_HUB_CACHE TRANSFORMERS_CACHE SENTENCE_TRANSFORMERS_HOME; do
             echo "$var=$EMPTY" >> "$GITHUB_ENV"
           done
-      - name: Drop all outbound network at the kernel
-        run: |
-          sudo iptables -A OUTPUT -o lo -j ACCEPT
-          sudo iptables -P OUTPUT DROP
-          sudo ip6tables -A OUTPUT -o lo -j ACCEPT
-          sudo ip6tables -P OUTPUT DROP
-      - name: Prove the network is actually down
-        run: |
-          if curl --silent --max-time 10 https://pypi.org/simple/ > /dev/null; then
-            echo "outbound HTTPS is still reachable; this job would prove nothing"
-            exit 1
-          fi
-          if python -c "import socket; socket.create_connection(('1.1.1.1', 443), timeout=5)"; then
-            echo "raw outbound TCP is still reachable"
-            exit 1
-          fi
-          echo "outbound network is down"
-      - name: Rebuild derived artifacts with the network down
+      # Everything below runs inside a network namespace whose only interface is
+      # loopback. An earlier version dropped egress machine-wide with iptables;
+      # that also severed the runner agent's own connection to GitHub, and the
+      # job was cancelled after thirty minutes without a single step reporting.
+      # Isolating the workload leaves the agent reachable and is the stronger
+      # claim anyway: nothing inside can reach the network, including the
+      # subprocesses the Python socket guard cannot see.
+      - name: Offline smoke inside a network namespace (no network, no model, no credentials)
         run: |
           mkdir -p Data/test_tmp
-          python scripts/provision_derived_artifacts.py
-          python scripts/provision_derived_artifacts.py --check-only
-      - name: Offline smoke (no network, no model, no credentials)
-        run: |
-          python -m pytest \
-            tests/test_hermetic_network_contract.py \
-            tests/test_safety_runtime_empty_cache.py \
-            tests/test_health_endpoint.py \
-            tests/test_operational_endpoints.py \
-            tests/test_auth_demo_environment_gate.py \
-            tests/test_access_control.py \
-            tests/test_api_input_validation_boundaries.py \
-            tests/test_structured_logging.py \
-            tests/test_runtime_observability.py \
-            tests/test_constants_sync.py \
-            tests/test_safety_eval_center.py \
-            -q
+          sudo -E env "PATH=$PATH" unshare --net bash -euo pipefail -c '
+            ip link set lo up
+            if curl --silent --max-time 10 https://pypi.org/simple/ > /dev/null; then
+              echo "outbound HTTPS is still reachable; this job would prove nothing"
+              exit 1
+            fi
+            if curl --silent --max-time 10 https://1.1.1.1/ > /dev/null; then
+              echo "outbound TCP to a raw address is still reachable"
+              exit 1
+            fi
+            echo "no egress inside the namespace"
+
+            python scripts/provision_derived_artifacts.py
+            python scripts/provision_derived_artifacts.py --check-only
+
+            python -m pytest \
+              tests/test_hermetic_network_contract.py \
+              tests/test_safety_runtime_empty_cache.py \
+              tests/test_health_endpoint.py \
+              tests/test_operational_endpoints.py \
+              tests/test_auth_demo_environment_gate.py \
+              tests/test_access_control.py \
+              tests/test_api_input_validation_boundaries.py \
+              tests/test_structured_logging.py \
+              tests/test_runtime_observability.py \
+              tests/test_constants_sync.py \
+              tests/test_safety_eval_center.py \
+              -q
+          '
 
   docker-build:
     runs-on: ubuntu-latest

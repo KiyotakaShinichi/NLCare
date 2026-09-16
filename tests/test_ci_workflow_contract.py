@@ -375,30 +375,48 @@ def _first(steps: list[str], needle: str) -> int:
     return next(i for i, run in enumerate(steps) if needle in run)
 
 
+def _isolated_step() -> str:
+    return _offline_steps()[_first(_offline_steps(), "unshare --net")]
+
+
 def test_the_offline_smoke_job_exists() -> None:
     assert "offline-smoke" in _workflow()["jobs"]
 
 
-def test_the_offline_smoke_cuts_the_network_after_install_and_before_everything_else() -> None:
-    """Order is the whole claim: install online, then nothing else is."""
+def test_dependencies_install_before_the_isolated_step() -> None:
     steps = _offline_steps()
-    install = _first(steps, "uv sync --frozen")
-    cut = _first(steps, "iptables -P OUTPUT DROP")
-    provision = _first(steps, "provision_derived_artifacts.py")
-    tests = _first(steps, "python -m pytest")
-    assert install < cut < provision < tests
+    assert _first(steps, "uv sync --frozen") < _first(steps, "unshare --net")
 
 
-def test_the_offline_smoke_blocks_ipv6_too() -> None:
-    assert _first(_offline_steps(), "ip6tables -P OUTPUT DROP") >= 0
+def test_the_workload_is_isolated_rather_than_the_machine() -> None:
+    """Dropping egress host-wide also cuts the runner agent off from GitHub.
+
+    That is not a hypothetical: the first version of this job used a machine-wide
+    iptables OUTPUT DROP, lost contact, and was cancelled after thirty minutes
+    without reporting a single step. A namespace isolates the workload and
+    leaves the agent reachable.
+    """
+    runs = "\n".join(_offline_steps())
+    assert "unshare --net" in runs
+    assert "iptables -P OUTPUT DROP" not in runs
 
 
-def test_the_offline_smoke_proves_the_block_before_relying_on_it() -> None:
-    """A rule that silently failed to apply would make every later step vacuous."""
-    steps = _offline_steps()
-    proof = _first(steps, "curl")
-    assert _first(steps, "iptables -P OUTPUT DROP") < proof < _first(steps, "python -m pytest")
-    assert "exit 1" in steps[proof]
+def test_the_isolated_step_proves_no_egress_before_it_relies_on_it() -> None:
+    """A namespace that silently failed to apply would make the rest vacuous."""
+    step = _isolated_step()
+    assert step.index("curl") < step.index("python -m pytest")
+    assert "exit 1" in step
+
+
+def test_loopback_is_up_inside_the_namespace() -> None:
+    """SQLite and the in-process test client need it; egress still cannot work."""
+    assert "ip link set lo up" in _isolated_step()
+
+
+def test_provisioning_and_tests_both_run_inside_the_namespace() -> None:
+    step = _isolated_step()
+    assert "provision_derived_artifacts.py" in step
+    assert step.index("provision_derived_artifacts.py") < step.index("python -m pytest")
 
 
 def test_the_offline_smoke_starts_from_an_empty_model_cache() -> None:
