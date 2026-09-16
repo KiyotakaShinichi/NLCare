@@ -14,9 +14,10 @@ timestamp, and the paths that embed each run's own temporary directory.
 Two pristine runs of the pre-split module were first confirmed to agree on
 every metric, so a difference here is the decomposition, not noise.
 
-This needs full git history, which the fresh-clone job checks out. It does not
-skip when the object is missing: a skip would quietly retire the check in the
-one job that runs every test file.
+This needs full git history, which the fresh-clone job checks out. When the
+object is missing the loader raises rather than quietly passing: an equivalence
+check that silently stops running, in the one job that runs every test file, is
+worse than a loud failure.
 """
 
 from __future__ import annotations
