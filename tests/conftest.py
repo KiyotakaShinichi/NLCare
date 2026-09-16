@@ -42,6 +42,27 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
+# The retrieval and adjudication mode the default suite runs under - the values
+# every CI job already sets. Without them a local `pytest` used dense hybrid
+# retrieval whenever sentence-transformers/all-MiniLM-L6-v2 happened to be
+# cached, and sparse retrieval otherwise, while CI always ran sparse: a green
+# local run and a green CI run could be exercising different retrieval code.
+#
+# Set at conftest import rather than in the session fixture below. pytest
+# imports this module before collecting any test module, while
+# `rag_vector_index` reads RAG_FORCE_SPARSE once, at its own import - a fixture
+# runs after that and would change nothing. `setdefault` keeps an explicit
+# value, so `RAG_FORCE_SPARSE=false pytest ...` still exercises dense retrieval
+# deliberately.
+_SUITE_DEFAULTS = {
+    "RAG_FORCE_SPARSE": "true",
+    "RAG_ENABLE_CROSS_ENCODER": "false",
+    "LLM_ADJUDICATION_ENABLED": "false",
+}
+for _name, _value in _SUITE_DEFAULTS.items():
+    os.environ.setdefault(_name, _value)
+
+
 # Credentials that must never be required by the default suite. They are
 # cleared rather than merely ignored so that a stray live code path fails on a
 # missing key instead of quietly authenticating against a real account with a
