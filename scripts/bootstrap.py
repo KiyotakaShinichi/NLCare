@@ -16,10 +16,12 @@ Everything here is declared, reproducible, and free of developer-local paths.
 No step requires a secret, and no step reads a file that merely happens to
 exist on the machine that ran it before.
 
-Network use is confined to the dependency sync and the one-time encoder
-download. After bootstrap, the test suite runs fully offline — and the default
-suite additionally blocks outbound connections and clears third-party
-credentials (see `tests/conftest.py`).
+Network use is the dependency sync, the one-time semantic-safety encoder
+download, and - unless RAG_FORCE_SPARSE=true is set - the dense retrieval
+encoder that the index build loads on first use. No step provisions that one;
+see docs/environment_configuration.md for the model inventory. After bootstrap
+the test suite runs fully offline: it pins RAG_FORCE_SPARSE, blocks outbound
+connections, and clears third-party credentials (see `tests/conftest.py`).
 
     python scripts/bootstrap.py --check       # verify without changing anything
     python scripts/bootstrap.py --with-frontend

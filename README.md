@@ -40,10 +40,17 @@ npm run dev
 ```
 
 `bootstrap.py` is the single documented setup command: it syncs the frozen
-dependency set, downloads the semantic-safety encoders once, rebuilds the
+dependency set, downloads the semantic-safety encoder once, rebuilds the
 derived RAG and lakehouse artifacts from tracked inputs, and then verifies the
-safety runtimes actually load. Only the dependency sync and the one-time
-encoder download touch the network; everything after that runs offline.
+safety runtimes actually load.
+
+Three things touch the network: the dependency sync, the one-time
+semantic-safety encoder download, and - unless `RAG_FORCE_SPARSE=true` is set -
+the dense retrieval encoder, which the index build loads on first use and which
+no provisioning step fetches. Set `RAG_FORCE_SPARSE=true` before bootstrap for a
+setup whose only download is the safety encoder. The full model inventory and
+the exact offline commands are in
+[operating modes](docs/environment_configuration.md#operating-modes).
 
 Open `http://127.0.0.1:5173`. See `.env.example` and
 [environment configuration](docs/environment_configuration.md) before running.

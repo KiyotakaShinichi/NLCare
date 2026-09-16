@@ -30,6 +30,111 @@ durable database, provide Redis when shared rate limiting is enabled, and pass
 engineering dependency availability only; it does not establish clinical
 validation, healthcare compliance, or real-patient readiness.
 
+## Operating modes
+
+Three modes, and the variables that select them. Every variable here already
+exists; this section is where they are described together, with the model
+artifacts each mode needs.
+
+### 1. Offline development and test
+
+No external account, key, or credential. This is what a fresh clone runs.
+
+| Variable | Offline value | Effect |
+| --- | --- | --- |
+| `ENVIRONMENT` | `development` | Demo sign-in is available. Anywhere else it needs `ALLOW_DEMO_AUTH=true`, and `deployment_boundary_check` flags that combination under `production`. |
+| `RAG_FORCE_SPARSE` | `true` | Sparse TF-IDF/BM25 retrieval only. No embedding model is loaded. |
+| `RAG_ENABLE_CROSS_ENCODER` | `false` (default) | No reranking model. Enabling it downloads one on first use. |
+| `LLM_ADJUDICATION_ENABLED` | `false` | No provider-backed adjudication call. Defaults to `true` in `.env.example`. |
+| `HF_HUB_OFFLINE`, `TRANSFORMERS_OFFLINE` | `1` | The model libraries never contact the Hugging Face hub. |
+| `NLCARE_TEST_OFFLINE` | `true` | Set by pytest for the default suite: strips provider credentials and blocks every non-loopback socket and DNS lookup. |
+
+Provider keys are simply left unset. The default suite clears them even when
+they are set, and `tests/conftest.py` pins the first four values above so a
+local run exercises the same retrieval code as CI.
+
+#### Model artifacts
+
+Two sentence-transformer models can be loaded at runtime. They are not
+equivalent, and only one is provisioned:
+
+| Model | Used by | How it loads | Provisioned by bootstrap | Without it |
+| --- | --- | --- | --- | --- |
+| `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` | the DEP-001 semantic-safety runtimes | `local_files_only=True` - never fetched at request time | **yes**, by `scripts/provision_semantic_safety_encoders.py` | the safety layer fails closed (every prompt treated as high-risk) and the classification suites fail |
+| `sentence-transformers/all-MiniLM-L6-v2` | dense hybrid retrieval, active whenever `RAG_FORCE_SPARSE` is unset and `sentence-transformers` and `faiss` are installed | plain load - **fetched from the hub on first index build or query** | **no** | `/ready` reports the retrieval runtime `degraded`; retrieval falls back |
+
+The second is a real network dependency of the default configuration, not of
+the test suite: `scripts/bootstrap.py` runs `provision_derived_artifacts.py`,
+which runs `scripts/ingest_knowledge_base.py`, which calls
+`build_rag_vector_index`. With `RAG_FORCE_SPARSE` unset that builds the dense
+index and loads `all-MiniLM-L6-v2`. Verified by running that build against an
+empty model cache: it fails trying to reach `huggingface.co`.
+
+Set `RAG_FORCE_SPARSE=true` before bootstrap for a setup whose only download is
+the semantic-safety encoder.
+
+#### The exact offline commands
+
+```bash
+python -m pip install uv==0.8.24
+uv sync --frozen                                        # needs the package index
+uv run --frozen python scripts/provision_semantic_safety_encoders.py   # one-time model download
+
+export RAG_FORCE_SPARSE=true HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 LLM_ADJUDICATION_ENABLED=false
+uv run --frozen python scripts/provision_derived_artifacts.py
+uv run --frozen pytest tests -q
+```
+
+Everything after the first two lines runs without the network.
+
+To run the part that needs no model at all - what a buyer gets from the
+lockfile alone - point every cache at an empty directory and run the suites the
+`offline-smoke` CI job runs:
+
+```bash
+export HF_HOME="$(mktemp -d)" HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 RAG_FORCE_SPARSE=true
+uv run --frozen pytest \
+  tests/test_hermetic_network_contract.py \
+  tests/test_safety_runtime_empty_cache.py \
+  tests/test_health_endpoint.py \
+  tests/test_operational_endpoints.py \
+  tests/test_auth_demo_environment_gate.py \
+  tests/test_access_control.py \
+  tests/test_api_input_validation_boundaries.py \
+  tests/test_structured_logging.py \
+  tests/test_runtime_observability.py \
+  tests/test_constants_sync.py \
+  tests/test_safety_eval_center.py -q
+```
+
+`offline-smoke` runs exactly these with all outbound traffic dropped at the
+kernel, which also covers the subprocesses the Python socket guard cannot see.
+
+### 2. Optional external-provider mode
+
+The backend contains adapters for Groq, Ollama, Pinecone, Azure AI Search, n8n,
+cBioPortal, and MLflow. Each is gated behind configuration and off unless a key
+or endpoint is supplied. They are development integrations for bounded
+synthetic evaluation; nothing in the offline path requires them, and their
+credentials come from a secret manager rather than a committed file.
+
+### 3. Production deployment requirements
+
+`ENVIRONMENT=production`, demo authentication off, a durable database, Redis
+when shared rate limiting is enabled, secrets from a secret manager, and
+`/ready` passing before traffic.
+
+Model availability is a deployment decision, not an automatic one. The
+container's `serving` profile (`PYTHON_PROFILE=serving`, what docker-compose
+builds) installs project dependencies only, which excludes
+`sentence-transformers`. In that image the semantic-safety runtimes cannot
+import their encoder and fail closed - the deterministic guardrails still run,
+but the semantic layer contributes nothing. The `full` profile includes it and
+needs the encoder present in the image or a mounted cache.
+
+None of this is clinical validation, healthcare compliance, or approval for
+real patient data. `NLCARE_SYNTHETIC_ONLY=true` stays set.
+
 ## Runtime probes
 
 Two endpoints, answering two different questions. Conflating them is the

@@ -7,6 +7,21 @@ published a tagged release; historical entries are intentionally not invented.
 
 ### Added
 
+- `tests/test_dep001b_corpus_reproducibility.py`: regenerates the four frozen
+  DEP-001B safety banks into a temporary tree and compares them to the
+  committed ones byte for byte, so the corpus is provably the output of its
+  declared generator and configuration.
+- An `offline-smoke` CI job: dependencies install, then iptables and ip6tables
+  drop all outbound traffic, every model cache points at an empty directory,
+  and the suites that need no model run - including the one asserting the
+  safety layer fails closed without its encoder.
+- Frontend telemetry for the three paths that bypassed the request transport:
+  streamed chat, authenticated artifact previews, and non-API failures in the
+  shared tool-form submit hook, which also gained its first tests.
+- An "Operating modes" section documenting the offline, optional-provider, and
+  production modes, and the two runtime models - only one of which is
+  provisioned.
+
 - `backend/api/routers/health.py`: the operational probes are now a router
   registered with `app.include_router(health.router)`, like every other route
   group, instead of being decorated inline on the app object.
@@ -56,6 +71,16 @@ published a tagged release; historical entries are intentionally not invented.
   fixtures.
 
 ### Changed
+
+- `backend/models.py` split into ML-lineage and SaaS control-plane modules;
+  `dep001b_safety_corpus.py` split into corpus language and dataset
+  construction; the deep-learning benchmark split into features, architectures,
+  and reporting. Each move is verified by a reproducibility or pinned-commit
+  equivalence test rather than by review alone.
+- `tests/conftest.py` pins the retrieval and adjudication mode the default
+  suite runs under, so a local run and a CI run exercise the same code instead
+  of differing by whatever is in a model cache.
+
 
 - `backend/services/agent_rag.py` is now a 211-line facade; branch execution
   moved to `agent_pipeline_runner` and response shaping to
@@ -108,6 +133,16 @@ published a tagged release; historical entries are intentionally not invented.
   instead of depending on persistent local database state.
 
 ### Known limitations
+
+- The DEP-001B candidate freeze (2026-08-13) no longer matches `main` for 10 of
+  its 26 artifacts: one recorded fixture incident and nine later source and
+  configuration changes. For those files `main` is not the evaluated candidate.
+  Disclosed in `docs/dep001_safety_release_architecture.md`.
+- Dense hybrid retrieval, the default when `RAG_FORCE_SPARSE` is unset, loads
+  `sentence-transformers/all-MiniLM-L6-v2` from the Hugging Face hub on first
+  use. No provisioning step fetches it, and it is loaded without
+  `local_files_only`. Documented, not changed.
+
 
 - The semantic safety encoder is a ~480 MB multilingual transformer that must
   be provisioned once with network access. It cannot be replaced by a small
