@@ -26,7 +26,7 @@ cyclonedx-python-lib==9.1.0
 defusedxml==0.7.1
 distro==1.9.0
 et-xmlfile==2.0.0
-faiss-cpu==1.13.2
+faiss-cpu==1.15.0
 fastapi==0.136.1
 filelock==3.32.3
 fonttools==4.63.0
@@ -40,7 +40,7 @@ hf-xet==1.6.0
 httpcore==1.0.9
 httptools==0.8.0
 httpx==0.28.1
-huggingface-hub==1.28.0
+huggingface-hub==1.31.0
 idna==3.19
 iniconfig==2.3.0
 jinja2==3.1.6
@@ -60,11 +60,11 @@ mypy-extensions==1.1.0
 networkx==3.6.1
 nibabel==5.4.2
 numba==0.67.0
-numpy==2.4.4
+numpy==2.4.6
 openpyxl==3.1.5
 packageurl-python==0.17.6
 packaging==26.3
-pandas==3.0.2
+pandas==3.0.5
 pathspec==1.1.1
 pillow==12.3.0
 pip==26.2.1
@@ -99,7 +99,7 @@ requests==2.34.2
 rich==15.0.0
 ruff==0.12.11
 safetensors==0.8.0
-scikit-learn==1.8.0
+scikit-learn==1.9.1
 scipy==1.18.0
 sentence-transformers==5.4.1
 setuptools==83.0.0
@@ -114,12 +114,12 @@ starlette==1.6.0
 sympy==1.14.0
 tenacity==9.1.4
 threadpoolctl==3.6.0
-tokenizers==0.22.2
+tokenizers==0.23.2
 toml==0.10.2
 torch==2.13.0
 torchvision==0.28.0
 tqdm==4.70.0
-transformers==5.15.1
+transformers==5.17.0
 typer==0.27.1
 types-pyyaml==6.0.12.20250915
 typing-extensions==4.16.0
