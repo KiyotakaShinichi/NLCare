@@ -35,7 +35,6 @@
     "backend/services/rag_eval_suite.py": 506,
     "backend/services/rag_vector_index.py": 819,
     "backend/services/research_paper_kb_eval.py": 671,
-    "backend/services/security_guardrails.py": 751,
     "backend/services/ten_out_of_ten_roadmap.py": 785,
     "backend/services/toxicity_feature_audit.py": 520
   },
