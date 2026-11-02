@@ -64,8 +64,8 @@ test.describe("role-aware smoke flows", () => {
   test("second patient account logs in and abstains on an empty record", async ({ page }) => {
     await signIn(page, "P002", "patient-demo", /\/patient/);
     await expect(page.getByText(/Patient P002/i)).toBeVisible();
-    await expect(page.getByText(/Not available/i).first()).toBeVisible({ timeout: 90_000 });
-    await expect(page.getByText(/0\/6/i).first()).toBeVisible();
+    await expect(page.getByText(/No lab history recorded yet/i).first()).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText(/No symptoms logged yet/i).first()).toBeVisible();
     await expect(
       page.getByText(/absence of flags cannot be interpreted as reassuring/i),
     ).toBeVisible();
@@ -138,24 +138,21 @@ test.describe("role-aware smoke flows", () => {
     await expect(page).not.toHaveURL(/\/admin/);
   });
 
-  test("patient dashboard renders the KPI-style card hierarchy", async ({ page }) => {
+  test("patient dashboard renders the overview reading order", async ({ page }) => {
     await signIn(page, "P001", "patient-demo", /\/patient/);
     await expect(page).toHaveURL(/\/patient/);
 
-    // Top row — KPI strip mirrors a company-style dashboard overview.
-    await expect(page.getByText(/Items for review/i).first()).toBeVisible({ timeout: 90_000 });
-    await expect(page.getByText(/Synthetic model pattern/i).first()).toBeVisible();
-    await expect(page.getByText(/Latest CBC/i).first()).toBeVisible();
-    await expect(page.getByText(/Record coverage/i).first()).toBeVisible();
-    await expect(page.getByText(/How NLCare calculated it/i)).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Safe next steps/i })).toBeVisible();
+    // Top row: counts of what is in the record, not status tiles.
+    await expect(page.getByRole("heading", { name: /At a glance/i })).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText(/to raise with your team/i).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /How you have been feeling/i })).toBeVisible();
 
-    // Detail rows — labs, timeline, summaries, and model signal remain reachable.
+    // Detail rows: labs, timeline, summaries, and the research-model notice remain reachable.
     await expect(page.getByRole("heading", { name: /Lab values \(CBC\)/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Timeline|Treatment timeline/i }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: /Today's summary/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Review queue/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Model signal/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Research model outputs/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Recent AI explanations/i })).toBeVisible();
 
     // Page-level safety footnote must be reachable by scrolling — confirms it
@@ -165,45 +162,26 @@ test.describe("role-aware smoke flows", () => {
     await expect(footnote).toBeVisible();
   });
 
-  test("patient KPI cards avoid clipping at tablet and mobile widths", async ({ page }) => {
+  test("patient overview figures avoid clipping at tablet and mobile widths", async ({ page }) => {
     test.setTimeout(180_000);
     await page.setViewportSize({ width: 906, height: 698 });
     await signIn(page, "P001", "patient-demo", /\/patient/);
-    const cards = page.locator(".patient-kpi-card");
-    await expect(cards).toHaveCount(4, { timeout: 90_000 });
-
-    const tabletLayout = await cards.evaluateAll((elements) =>
-      elements.map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          y: Math.round(rect.y),
-          clientWidth: element.clientWidth,
-          scrollWidth: element.scrollWidth,
-        };
-      }),
-    );
-    expect(new Set(tabletLayout.map((card) => card.y)).size).toBeGreaterThanOrEqual(2);
-    expect(tabletLayout.every((card) => card.scrollWidth <= card.clientWidth + 1)).toBe(true);
+    const figures = page.locator(".po-summary-item");
+    await expect(figures).toHaveCount(3, { timeout: 90_000 });
+    const unclipped = () =>
+      figures.evaluateAll((elements) =>
+        elements.every((element) => element.scrollWidth <= element.clientWidth + 1),
+      );
+    expect(await unclipped()).toBe(true);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload();
-    await expect(page.getByText(/Items for review/i).first()).toBeVisible({ timeout: 90_000 });
-    const mobileLayout = await cards.evaluateAll((elements) =>
-      elements.map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          y: Math.round(rect.y),
-          clientWidth: element.clientWidth,
-          scrollWidth: element.scrollWidth,
-        };
-      }),
-    );
+    await expect(figures).toHaveCount(3, { timeout: 90_000 });
+    expect(await unclipped()).toBe(true);
     const pageWidth = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
     }));
-    expect(new Set(mobileLayout.map((card) => card.y)).size).toBe(4);
-    expect(mobileLayout.every((card) => card.scrollWidth <= card.clientWidth + 1)).toBe(true);
     expect(pageWidth.scrollWidth).toBeLessThanOrEqual(pageWidth.clientWidth + 1);
   });
 
@@ -260,32 +238,27 @@ test.describe("role-aware smoke flows", () => {
     await expect(chatComposer(page)).toBeVisible();
   });
 
-  test("patient overview surfaces the synthetic engineering caveat on monitoring tiles", async ({ page }) => {
-    // The KPI tiles for the model-derived signals MUST carry the credibility
-    // footer so the patient never
-    // mistakes an engineering signal for a clinical prediction.
+  test("patient overview keeps research-model output out and says what that does not mean", async ({ page }) => {
+    // Milestone 7.4: no individual score, class label or confidence reaches a
+    // patient, and the absence of a score must not read as the absence of risk.
     await signIn(page, "P001", "patient-demo", /\/patient/);
-    await expect(page.getByText(/Items for review/i).first()).toBeVisible({ timeout: 90_000 });
-    await expect(
-      page
-        .getByText(/Synthetic engineering signal.*Not a clinical prediction.*For clinician review/i)
-        .first(),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Research model outputs/i })).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText(/does not mean there is no risk/i).first()).toBeVisible();
+    await expect(page.getByText(/Synthetic monitoring model|Synthetic model pattern|hybrid score/i)).toHaveCount(0);
   });
 
-  test("synthetic monitoring model card shows decision slots or a clean abstention state", async ({ page }) => {
-    await signIn(page, "P001", "patient-demo", /\/patient/);
-    await expect(page.getByText(/Synthetic monitoring model/i).first()).toBeVisible({ timeout: 90_000 });
+  test("clinician synthetic monitoring model card shows decision slots or a clean abstention state", async ({ page }) => {
+    await signIn(page, "clinician", "clinician-demo", /\/clinician/);
     // Whichever path the backend returns, one of these credibility lines must
     // show on the page. The hybrid envelope ships a per-card footer; the
     // abstention path shows the evidence-aware empty state.
     await expect(
       page
         .getByText(
-          /Synthetic engineering signal.*Not a clinical prediction.*For clinician review|No live hybrid prediction|Insufficient evidence/i,
+          /Synthetic engineering signal.*Not a clinical prediction|No live hybrid prediction|Insufficient evidence/i,
         )
         .first(),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 90_000 });
   });
 
   test("admin safety eval card carries n-size, clinical_validation:false, and the warn-tinted needs_attention path", async ({ page }) => {

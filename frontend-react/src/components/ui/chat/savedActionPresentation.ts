@@ -43,7 +43,7 @@ export function savedActionDescriptor(action: SavedAction): SavedActionDescripto
       return { label, Icon: ScanLine, tone: "success" };
     }
     case "possible_metastatic_indicator":
-      return { label: "Review flag added", Icon: AlertTriangle, tone: "warning" };
+      return { label: "Worth raising with your care team", Icon: AlertTriangle, tone: "warning" };
     case "pending_record_confirmation":
       return { label: "Waiting for your confirmation", Icon: ShieldCheck, tone: "info" };
     case "record_write_cancelled":

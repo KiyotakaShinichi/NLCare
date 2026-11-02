@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Brain,
   Sparkles,
-  X,
   ExternalLink,
   FileText,
   Image as ImageIcon,
@@ -15,16 +14,30 @@ import {
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { SectionCard } from "../../components/ui/SectionCard";
+import { readableEventTitle } from "../../lib/timelineLanguage";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { RelativeTime } from "../../components/ui/RelativeTime";
 import { EmptyState } from "../../components/ui/states";
 import { AIGeneratedLabel } from "../../components/ui/AIGeneratedLabel";
+import { Modal } from "../../components/ui/Modal";
 import { getAuthenticatedObjectUrl } from "../../api/client";
 import type { TimelineEvent, TimelineMedia } from "../../types/api";
+import { toPatientReason } from "../../lib/patientLanguage";
 
 interface Props {
   events: TimelineEvent[];
   lastFetchedAt?: number | null;
+  /**
+   * Suppresses the risk engine's confidence badge on AI-flagged events.
+   *
+   * `confidence_level` describes whether the engine's checklist inputs were
+   * present, not whether the flag is right, so a patient-facing surface can
+   * opt out of presenting it as "Confidence: high". Defaults to false so every
+   * existing caller renders exactly as before.
+   */
+  hideConfidence?: boolean;
+  /** Rule-flag titles in plain words. The badges and source line stay as they are. */
+  plainTitles?: boolean;
 }
 
 /** Latest-N events shown by default; the rest is gated behind "View all". */
@@ -107,9 +120,12 @@ function TimelineDateGroup({ primary, secondary, count, children }: TimelineDate
 interface TimelineEventCardProps {
   event: TimelineEvent;
   onSelect: (event: TimelineEvent) => void;
+  hideConfidence?: boolean;
+  plainTitles?: boolean;
 }
 
-function TimelineEventCard({ event, onSelect }: TimelineEventCardProps) {
+function TimelineEventCard({ event, onSelect, hideConfidence = false, plainTitles = false }: TimelineEventCardProps) {
+  const title = plainTitles ? readableEventTitle(event) : event.title;
   const { Icon, tone, label } = eventIcon(event.type);
   const palette = toneStyle[tone];
   const isAi = isAiFlagEvent(event);
@@ -121,7 +137,7 @@ function TimelineEventCard({ event, onSelect }: TimelineEventCardProps) {
         type="button"
         className="timeline-event-open"
         onClick={() => onSelect(event)}
-        aria-label={`Open details for ${event.title}`}
+        aria-label={`Open details for ${title}`}
       >
         <span
           className="timeline-event-icon"
@@ -132,21 +148,28 @@ function TimelineEventCard({ event, onSelect }: TimelineEventCardProps) {
         </span>
         <div className="timeline-event-body">
           <div className="timeline-event-headline">
-            <span className="timeline-event-title">{event.title}</span>
+            <span className="timeline-event-title">{title}</span>
             <StatusBadge tone="accent" size="sm">{label}</StatusBadge>
             {event.severity && sevTone !== "neutral" && (
               <StatusBadge tone={sevTone} size="sm">{event.severity}</StatusBadge>
             )}
           </div>
+          {/* Timeline summaries carry the same clinician-directed wording as the
+              review prompts - "Continue monitoring and review in clinical
+              context" - so they get the same treatment: the observation is
+              kept verbatim, the instruction aimed at a clinician is not shown
+              to the patient as though it described them. */}
           {event.summary && (
-            <p className="timeline-event-summary">{event.summary}</p>
+            <p className="timeline-event-summary">
+              {toPatientReason(event.summary).observation}
+            </p>
           )}
 
           {isAi && (
             <AIGeneratedLabel
               className="mt-2"
-              confidence={uncertainty?.confidence_level ?? null}
-              uncertaintyReason={uncertainty?.uncertainty_reason ?? null}
+              confidence={hideConfidence ? null : uncertainty?.confidence_level ?? null}
+              uncertaintyReason={hideConfidence ? null : uncertainty?.uncertainty_reason ?? null}
               clinicianReviewRequired={uncertainty?.clinician_review_required ?? null}
               timestamp={event.date}
               source={event.evidence_source ?? "risk_engine"}
@@ -230,31 +253,28 @@ function AuthenticatedTimelineMediaCard({ item, index }: { item: TimelineMedia; 
   );
 }
 
-function TimelineDetailModal({ event, onClose }: { event: TimelineEvent; onClose: () => void }) {
+function TimelineDetailModal({ event, onClose, plainTitles = false }: { event: TimelineEvent; onClose: () => void; plainTitles?: boolean }) {
   const detail = event.detail;
   const fields = Object.entries(detail?.fields ?? {}).filter(([, value]) => value !== undefined);
   const media = detail?.media ?? [];
 
+  // Rendered through the shared Modal rather than a bespoke role="dialog".
+  // The hand-rolled version had no Escape handler and did not restore focus to
+  // the trigger on close; Modal does both, plus the scroll lock and the portal.
   return (
-    <div className="timeline-detail-backdrop" role="presentation" onMouseDown={onClose}>
-      <section
-        className="timeline-detail-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="timeline-detail-title"
-        onMouseDown={(event_) => event_.stopPropagation()}
-      >
-        <header className="timeline-detail-header">
-          <div>
-            <p className="timeline-detail-kicker">{event.type} - {String(event.date).slice(0, 10)}</p>
-            <h3 id="timeline-detail-title">{detail?.title ?? event.title}</h3>
-          </div>
-          <button type="button" className="timeline-detail-close" onClick={onClose} aria-label="Close details">
-            <X size={18} />
-          </button>
-        </header>
-
-        {event.summary && <p className="timeline-detail-summary">{event.summary}</p>}
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={plainTitles ? readableEventTitle({ ...event, title: detail?.title ?? event.title }) : detail?.title ?? event.title}
+      description={`${event.type} - ${String(event.date).slice(0, 10)}`}
+    >
+      <div className="timeline-detail-body">
+        {event.summary && (
+          <p className="timeline-detail-summary">
+            {toPatientReason(event.summary).observation}
+          </p>
+        )}
 
         {fields.length > 0 && (
           <dl className="timeline-detail-fields">
@@ -269,28 +289,28 @@ function TimelineDetailModal({ event, onClose }: { event: TimelineEvent; onClose
 
         {detail?.findings && (
           <section className="timeline-detail-section">
-            <h4>Findings</h4>
+            <h3>Findings</h3>
             <p>{detail.findings}</p>
           </section>
         )}
 
         {detail?.impression && (
           <section className="timeline-detail-section">
-            <h4>Impression</h4>
+            <h3>Impression</h3>
             <p>{detail.impression}</p>
           </section>
         )}
 
         {detail?.message && (
           <section className="timeline-detail-section">
-            <h4>Signal</h4>
+            <h3>Signal</h3>
             <p>{detail.message}</p>
           </section>
         )}
 
         {media.length > 0 && (
           <section className="timeline-detail-section">
-            <h4>Attached media / reports</h4>
+            <h3>Attached media / reports</h3>
             <div className="timeline-media-grid">
               {media.map((item, index) => (
                 <AuthenticatedTimelineMediaCard
@@ -306,12 +326,12 @@ function TimelineDetailModal({ event, onClose }: { event: TimelineEvent; onClose
         {detail?.notes && (
           <p className="timeline-detail-note">{detail.notes}</p>
         )}
-      </section>
-    </div>
+      </div>
+    </Modal>
   );
 }
 
-export function TimelinePanel({ events, lastFetchedAt }: Props) {
+export function TimelinePanel({ events, lastFetchedAt, hideConfidence = false, plainTitles = false }: Props) {
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [expanded, setExpanded] = useState(false);
   const sorted = [...(events ?? [])].sort((a, b) => b.date.localeCompare(a.date));
@@ -361,7 +381,7 @@ export function TimelinePanel({ events, lastFetchedAt }: Props) {
                 count={group.items.length}
               >
                 {group.items.map((ev, i) => (
-                  <TimelineEventCard key={i} event={ev} onSelect={setSelectedEvent} />
+                  <TimelineEventCard key={i} event={ev} onSelect={setSelectedEvent} hideConfidence={hideConfidence} plainTitles={plainTitles} />
                 ))}
               </TimelineDateGroup>
             ))}
@@ -381,7 +401,7 @@ export function TimelinePanel({ events, lastFetchedAt }: Props) {
         </>
       )}
       {selectedEvent && (
-        <TimelineDetailModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />
+        <TimelineDetailModal plainTitles={plainTitles} event={selectedEvent} onClose={() => setSelectedEvent(null)} />
       )}
     </SectionCard>
   );

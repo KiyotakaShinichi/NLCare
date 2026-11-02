@@ -1,3 +1,8 @@
+import type { ChatMessage } from "./api.chat";
+
+// Moved to api.chat.ts; still exported here so every existing import keeps working.
+export type { ChatMessage, ChatResponse, ChatStreamHandlers, SavedAction } from "./api.chat";
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export type Role = "patient" | "clinician" | "admin";
 
@@ -188,6 +193,11 @@ export interface AiSummary {
   patient_explanation: string | string[];
   clinical_summary: string | string[];
   review_reasons: string[];
+  /** How the summary was made, as a whole: "template" or "template+llm". Not available per finding. */
+  summary_source?: string | null;
+  /** The model behind the LLM part, when there was one. */
+  model?: string | null;
+  llm_status?: string | null;
 }
 
 export interface UncertaintyBlock {
@@ -449,31 +459,6 @@ export interface PatientReport {
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
-export interface SavedAction {
-  type: string;
-  data?: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
-export interface ChatMessage {
-  role: "user" | "assistant";
-  message: string;
-  saved_actions_json?: string;
-  citations?: string[];
-}
-
-export interface ChatResponse {
-  reply: string;
-  saved_actions: SavedAction[];
-  citations?: string[];
-  assistant_message_id?: string | number;
-}
-
-export interface ChatStreamHandlers {
-  onStage?: (label: string) => void;
-  onDelta?: (text: string) => void;
-}
-
 // ─── Clinician ────────────────────────────────────────────────────────────────
 export interface BreastCancerProfile {
   er_status: string | null;

@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { SectionCard } from "../../components/ui/SectionCard";
 import type { AiSummary, PatientReport } from "../../types/api";
+import { toPatientReasons, AUTOMATIC_PROMPT_NOTE, NO_RULE_MATCH_CAVEAT } from "../../lib/patientLanguage";
 
 interface Props {
   summary: AiSummary | null;
@@ -29,8 +30,20 @@ function categorise(reason: string): Category {
   return "general";
 }
 
+/**
+ * The queue is read by the patient, so the text is reframed for them.
+ *
+ * The backend writes these for a clinician - "Medical review is recommended",
+ * "Oncology review is recommended, especially during active chemotherapy" -
+ * and rendering them verbatim on a patient's own page reads as the outcome of
+ * a review that has not happened, directly under a banner saying no clinician
+ * has seen any of it. `toPatientReasons` keeps every item and every
+ * measurement, separates the instruction clause from the observation, and
+ * restates it as something the reader can act on. Nothing is suppressed and
+ * urgent items sort first.
+ */
 export function ReviewWithCareTeamCard({ summary }: Props) {
-  const reasons = summary?.review_reasons ?? [];
+  const reasons = toPatientReasons(summary?.review_reasons ?? []);
   const [expanded, setExpanded] = useState(false);
   const visible = expanded ? reasons : reasons.slice(0, 3);
   const hiddenCount = Math.max(0, reasons.length - visible.length);
@@ -38,7 +51,7 @@ export function ReviewWithCareTeamCard({ summary }: Props) {
   // Distinct category chips that appear in the queue, in stable order.
   const categoriesUsed: Category[] = [];
   for (const r of reasons) {
-    const c = categorise(r);
+    const c = categorise(r.source);
     if (!categoriesUsed.includes(c)) categoriesUsed.push(c);
   }
 
@@ -55,7 +68,10 @@ export function ReviewWithCareTeamCard({ summary }: Props) {
       }
     >
       {reasons.length === 0 ? (
-        <p className="review-empty">Nothing flagged today.</p>
+        <>
+          <p className="review-empty">Nothing flagged today.</p>
+          <p className="review-automatic-note">{NO_RULE_MATCH_CAVEAT}</p>
+        </>
       ) : (
         <>
           {categoriesUsed.length > 0 && (
@@ -77,10 +93,10 @@ export function ReviewWithCareTeamCard({ summary }: Props) {
             </ul>
           )}
           <ul className="review-list">
-            {visible.map((s, i) => {
-              const meta = CATEGORY_META[categorise(s)];
+            {visible.map((r, i) => {
+              const meta = CATEGORY_META[categorise(r.source)];
               return (
-                <li key={i} className="review-list-row">
+                <li key={r.source} className="review-list-row">
                   <span
                     className="review-list-index"
                     aria-hidden="true"
@@ -88,11 +104,18 @@ export function ReviewWithCareTeamCard({ summary }: Props) {
                   >
                     {i + 1}
                   </span>
-                  <span className="review-list-text">{s}</span>
+                  <span className="review-list-text">
+                    {r.observation}
+                    <span className="review-list-suggestion">
+                      {r.suggestion}
+                      {r.occurrences > 1 && ` Flagged ${r.occurrences} times in your record.`}
+                    </span>
+                  </span>
                 </li>
               );
             })}
           </ul>
+          <p className="review-automatic-note">{AUTOMATIC_PROMPT_NOTE}</p>
           {(hiddenCount > 0 || expanded) && (
             <button
               type="button"

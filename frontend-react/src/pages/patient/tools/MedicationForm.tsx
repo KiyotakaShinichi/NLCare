@@ -102,7 +102,7 @@ export function MedicationForm({ open, onClose, onSaved }: MedicationFormProps) 
       open={open}
       onClose={handleClose}
       title="Log a medication"
-      description="Track what you are taking so your care team can review it during follow-ups."
+      description="Track what you are taking. This view does not show whether your care team has seen it."
       size="md"
       dismissable={!submitting}
       footer={

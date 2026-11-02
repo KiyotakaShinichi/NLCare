@@ -22,6 +22,10 @@ interface LabCardProps {
   history?: Array<{ date: string; value: number | null }>;
   /** Date string of the latest reading.  When provided, shown as "Last: …". */
   lastSampleDate?: string | null;
+  /** A fuller name than the shared short label. */
+  label?: ReactNode;
+  /** Shown under the reading, for a chart that belongs with it. */
+  children?: ReactNode;
 }
 
 const TONE_COLOUR: Record<ReturnType<typeof labStatusTone>, { fg: string; bg: string; border: string; bar: string }> = {
@@ -202,7 +206,7 @@ function formatDate(dateString: string | null | undefined): string | null {
  * form, and any future clinician view can never disagree about what a lab
  * value means.
  */
-export function LabCard({ labKey, icon: Icon, value, history, lastSampleDate }: LabCardProps) {
+export function LabCard({ labKey, icon: Icon, value, history, lastSampleDate, label, children }: LabCardProps) {
   const range = LAB_REFERENCE_RANGES[labKey];
   const parsed = useMemo(() => parseSeries(history), [history]);
   const status: LabStatus = useMemo(() => classifyLabValue(labKey, value), [labKey, value]);
@@ -227,7 +231,7 @@ export function LabCard({ labKey, icon: Icon, value, history, lastSampleDate }: 
               <Icon size={12} aria-hidden="true" />
             </span>
           )}
-          {range.label}
+          {label ?? range.label}
         </span>
         <InfoTooltip>
           <p style={{ margin: 0, fontWeight: 600, color: "var(--text-strong)" }}>{range.label} reference</p>
@@ -270,6 +274,7 @@ export function LabCard({ labKey, icon: Icon, value, history, lastSampleDate }: 
         <span>Ref {range.refLow}–{range.refHigh} {range.unit}</span>
         {lastDate && <span>· Last sample {lastDate}</span>}
       </div>
+      {children}
     </div>
   );
 }

@@ -1,0 +1,396 @@
+/* Pearl Rose — scoped design tokens and the component vocabulary built on them.
+ *
+ * Everything here is scoped to `.c4`. Nothing touches `:root`, no global
+ * typography changes, and no rem is converted. That is deliberate: a token
+ * layer on `:root` would alter /patient, the three earlier previews and every
+ * admin surface at once, before any of them had been reviewed. Scoping proves
+ * the set on one real page first.
+ *
+ * Sizes are px. `:root` is 14px, so every rem in this codebase renders 12.5%
+ * under its nominal value — a known defect with its own isolated migration
+ * step. Stating px here keeps this preview honest until that lands.
+ */
+
+.c4 {
+  /* ── Layer 1: primitives ──────────────────────────────────────────────── */
+
+  /* Ink ramp, four steps. */
+  --pr-ink-900: #16151c;
+  --pr-ink-700: #3b3a49;
+  --pr-ink-500: #5f5e70;
+  --pr-ink-300: #8d8b9c;
+
+  /* Ground and surfaces. */
+  --pr-ground: #fbf8f7;
+  --pr-wash: #f7eaf0;
+  --pr-sheet: #ffffff;
+  --pr-rule: #e8dfe2;
+  --pr-rule-soft: #f2eaec;
+
+  /* Accents, kept apart from the semantic set. */
+  --pr-rose-600: #a9144f;
+  --pr-rose-700: #8d0f41;
+  --pr-rose-050: #fcecf2;
+  --pr-teal-600: #0d6072;
+  --pr-teal-050: #e6f4f7;
+
+  /* Semantic. A rose that also means "warning" means neither. */
+  --pr-ok-600: #0f6b4a;
+  --pr-ok-050: #e7f5ef;
+  --pr-warn-700: #7a4c05;
+  --pr-warn-050: #fdf4e3;
+  --pr-crit-600: #a3102a;
+  --pr-crit-050: #fdeced;
+
+  /* Spacing, six steps. Jumps widen because the eye reads ratios. */
+  --pr-space-1: 4px;
+  --pr-space-2: 8px;
+  --pr-space-3: 12px;
+  --pr-space-4: 20px;
+  --pr-space-5: 32px;
+  --pr-space-6: 52px;
+
+  /* Type scale, seven steps. 13 is a hard floor. */
+  --pr-text-xs: 13px;
+  --pr-text-sm: 14px;
+  --pr-text-md: 15px;
+  --pr-text-lg: 17px;
+  --pr-text-xl: 20px;
+  --pr-text-2xl: 26px;
+  --pr-text-3xl: 34px;
+  --pr-text-4xl: 44px;
+
+  /* Font roles. `--pr-font-display` is set by the variant, not here. */
+  --pr-font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --pr-font-numeric: "Inter", system-ui, sans-serif;
+
+  /* Radius: two, plus the pill for bounded selectors only. */
+  --pr-radius-control: 10px;
+  --pr-radius-panel: 16px;
+  --pr-radius-pill: 999px;
+
+  /* Elevation: one. Everything else separates with a hairline or a ground. */
+  --pr-shadow-raised: 0 18px 40px -32px rgba(22, 21, 28, .5);
+
+  /* ── Layer 2: semantic ────────────────────────────────────────────────── */
+  --pr-surface-ground: var(--pr-ground);
+  --pr-surface-wash: var(--pr-wash);
+  --pr-surface-sheet: var(--pr-sheet);
+  --pr-text-primary: var(--pr-ink-900);
+  --pr-text-secondary: var(--pr-ink-700);
+  --pr-text-tertiary: var(--pr-ink-500);
+  --pr-border-hairline: var(--pr-rule);
+  --pr-border-soft: var(--pr-rule-soft);
+  --pr-accent: var(--pr-rose-600);
+  --pr-accent-hover: var(--pr-rose-700);
+  --pr-accent-quiet: var(--pr-rose-050);
+  --pr-link: var(--pr-teal-600);
+  --pr-focus-ring: var(--pr-rose-600);
+
+  /* ── Density. Comfortable is the patient default. ─────────────────────── */
+  --pr-control-height: 44px;
+  --pr-stack: var(--pr-space-4);
+  --pr-section-gap: var(--pr-space-5);
+  --pr-row-padding: var(--pr-space-3);
+  --pr-body-size: var(--pr-text-lg);
+  --pr-measure: 62ch;
+}
+
+/* Compact: clinician, admin, MLE. Denser, never less accessible - the 24px
+   target floor and the 13px type floor do not move. */
+.c4[data-density="compact"] {
+  --pr-control-height: 36px;
+  --pr-stack: var(--pr-space-3);
+  --pr-section-gap: var(--pr-space-5);
+  --pr-row-padding: var(--pr-space-2);
+  --pr-body-size: var(--pr-text-md);
+  --pr-measure: 72ch;
+}
+
+/* ── Interaction states, defined once for every control ─────────────────── */
+.c4 :where(a, button, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--pr-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--pr-radius-control);
+}
+.c4 :where(button, a)[aria-disabled="true"],
+.c4 :where(button, input, select):disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.c4 [data-state="loading"] { cursor: progress; }
+
+/* ── Shell ───────────────────────────────────────────────────────────────── */
+.pr-shell {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  align-items: start;
+  min-height: 100%;
+  background: var(--pr-surface-ground);
+  color: var(--pr-text-primary);
+  font-family: var(--pr-font-body);
+}
+.pr-rail {
+  position: sticky;
+  top: 0;
+  padding: 26px var(--pr-space-4) 22px;
+  border-right: 1px solid var(--pr-border-hairline);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pr-space-4);
+}
+.pr-brand { margin: 0; display: flex; align-items: center; gap: 9px; }
+.pr-brand-mark {
+  width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--pr-accent); color: #fff;
+}
+.pr-brand-text {
+  font-family: var(--pr-font-display);
+  font-size: var(--pr-text-xl);
+  font-weight: 600; letter-spacing: -.015em; line-height: 1.1; min-width: 0;
+}
+.pr-brand-text small {
+  display: block; font-family: var(--pr-font-body);
+  font-size: var(--pr-text-xs); font-weight: 400; letter-spacing: 0;
+  color: var(--pr-text-tertiary); margin-top: 2px;
+}
+/* A rail item that acts inside the page rather than navigating away. It must
+   be indistinguishable from the anchors beside it. */
+.pr-nav-list .pr-nav-btn {
+  appearance: none; border: 0; background: none; width: 100%;
+  text-align: left; font: inherit; cursor: pointer;
+}
+
+.pr-nav-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.pr-nav-list a,
+.pr-nav-list .pr-nav-btn {
+  display: block; padding: 9px 10px; margin-left: -10px;
+  border-radius: var(--pr-radius-control);
+  color: var(--pr-text-secondary); font-size: var(--pr-text-md);
+  line-height: 1.35; text-decoration: none; min-height: 40px;
+}
+.pr-nav-list a:hover,
+.pr-nav-list .pr-nav-btn:hover { background: var(--pr-accent-quiet); color: var(--pr-accent); }
+.pr-nav-list a[aria-current="page"],
+.pr-nav-list .pr-nav-btn[aria-current="page"] { background: var(--pr-ink-900); color: #fff; font-weight: 600; }
+.pr-rail-foot { margin: 0; font-size: var(--pr-text-sm); line-height: 1.5; color: var(--pr-text-tertiary); }
+
+.pr-main { padding: 26px 40px 72px; min-width: 0; }
+.pr-stack { display: flex; flex-direction: column; gap: var(--pr-space-4); max-width: 1020px; }
+.pr-measure { max-width: var(--pr-measure); }
+
+/* ── Page header ─────────────────────────────────────────────────────────── */
+.pr-header {
+  background: var(--pr-surface-wash);
+  border-radius: var(--pr-radius-panel);
+  padding: var(--pr-space-4) 24px 18px;
+}
+.pr-header-top {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+}
+.pr-kicker { font-size: var(--pr-text-sm); color: var(--pr-text-tertiary); margin: 0 0 6px; }
+.pr-title {
+  font-family: var(--pr-font-display);
+  font-size: clamp(var(--pr-text-2xl), 3.6vw, var(--pr-text-4xl));
+  font-weight: 600; letter-spacing: -.032em; line-height: 1.05;
+  margin: 0; text-wrap: balance;
+}
+.pr-facts {
+  margin: 9px 0 0; font-size: var(--pr-text-md); color: var(--pr-text-secondary);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 2px;
+}
+.pr-facts-sep { color: var(--pr-border-hairline); padding: 0 9px; }
+.pr-actions { display: flex; gap: var(--pr-space-2); flex-wrap: wrap; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.pr-btn {
+  font: inherit; font-size: var(--pr-text-md); min-height: var(--pr-control-height);
+  padding: 11px 18px; border-radius: var(--pr-radius-control);
+  text-decoration: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--pr-space-2);
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.pr-btn--primary { background: var(--pr-accent); color: #fff; border: 1px solid var(--pr-accent); }
+.pr-btn--primary:hover { background: var(--pr-accent-hover); }
+.pr-btn--quiet { background: rgba(255,255,255,.76); color: var(--pr-text-primary); border: 1px solid var(--pr-border-hairline); }
+.pr-btn--quiet:hover { background: var(--pr-surface-sheet); }
+
+/* ── Figure strip: hairline-divided, inside the header wash ─────────────── */
+.pr-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(168px, 100%), 1fr));
+  gap: 1px; margin-top: 18px;
+  background: var(--pr-border-hairline);
+  border-radius: var(--pr-radius-control);
+  overflow: hidden;
+}
+.pr-figure { background: rgba(255,255,255,.72); padding: 15px 16px; display: flex; flex-direction: column; gap: 7px; }
+.pr-figure-value {
+  font-family: var(--pr-font-display); font-size: var(--pr-text-3xl);
+  font-weight: 600; line-height: 1; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+}
+.pr-figure-value--text { font-size: var(--pr-text-lg); line-height: 1.3; padding-top: 5px; }
+.pr-figure-label { font-size: var(--pr-text-sm); line-height: 1.45; color: var(--pr-text-tertiary); }
+
+/* ── Section ─────────────────────────────────────────────────────────────── */
+.pr-section { border-top: 1px solid var(--pr-border-hairline); padding-top: 18px; }
+.pr-section-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.pr-h2 {
+  font-family: var(--pr-font-display); font-size: var(--pr-text-2xl);
+  font-weight: 600; letter-spacing: -.026em; line-height: 1.2; margin: 0;
+}
+.pr-h3 { font-family: var(--pr-font-display); font-size: var(--pr-text-lg); font-weight: 600; margin: 0 0 10px; }
+.pr-lede { font-size: var(--pr-text-lg); line-height: 1.6; color: var(--pr-text-secondary); margin: 8px 0 0; }
+
+/* ── Pill group: bounded selections only ────────────────────────────────── */
+.pr-pills {
+  display: inline-flex; background: var(--pr-accent-quiet);
+  border-radius: var(--pr-radius-pill); padding: 4px; gap: 2px;
+}
+.pr-pills button {
+  font: inherit; font-size: var(--pr-text-sm); border: 0; background: none; cursor: pointer;
+  border-radius: var(--pr-radius-pill); padding: 9px 16px;
+  min-height: 40px; color: var(--pr-text-secondary);
+  transition: background 140ms ease, color 140ms ease;
+}
+.pr-pills button[aria-pressed="true"] { background: var(--pr-ink-900); color: #fff; font-weight: 600; }
+
+/* ── Chart frame ─────────────────────────────────────────────────────────── */
+.pr-figure-block { margin: 0; }
+.pr-sheet {
+  background: var(--pr-surface-sheet);
+  border: 1px solid var(--pr-border-soft);
+  border-radius: var(--pr-radius-panel);
+  padding: var(--pr-space-4) var(--pr-space-4) 10px;
+  box-shadow: var(--pr-shadow-raised);
+}
+.pr-caption {
+  font-size: var(--pr-text-sm); line-height: 1.6; color: var(--pr-text-tertiary);
+  border-top: 1px solid var(--pr-border-soft);
+  padding-top: 10px; margin-top: var(--pr-space-3); max-width: 78ch;
+}
+.pr-caption strong { color: var(--pr-text-secondary); font-weight: 600; }
+
+/* ── Notices: one component, four tones ─────────────────────────────────── */
+.pr-notice {
+  display: flex; gap: 9px; align-items: flex-start;
+  margin: var(--pr-space-3) 0 0; padding: 11px 14px;
+  border-radius: var(--pr-radius-control);
+  font-size: var(--pr-text-sm); line-height: 1.55; max-width: 86ch;
+}
+.pr-notice svg { flex-shrink: 0; margin-top: 2px; }
+.pr-notice--question { background: var(--pr-warn-050); color: var(--pr-warn-700); }
+.pr-notice--info { background: var(--pr-teal-050); color: #0a4d5c; }
+.pr-notice--ok { background: var(--pr-ok-050); color: var(--pr-ok-600); }
+.pr-notice--critical { background: var(--pr-crit-050); color: var(--pr-crit-600); }
+.pr-notice-title { font-weight: 600; display: block; margin-bottom: 2px; }
+
+/* ── List rows ───────────────────────────────────────────────────────────── */
+.pr-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: var(--pr-space-5); }
+.pr-list { list-style: none; margin: 0 0 var(--pr-space-3); padding: 0; }
+.pr-list li {
+  display: flex; gap: 11px; padding: var(--pr-row-padding) 0;
+  border-bottom: 1px solid var(--pr-border-soft);
+}
+.pr-list li:last-child { border-bottom: 0; }
+.pr-list-icon {
+  width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--pr-teal-050); color: var(--pr-teal-600);
+}
+.pr-list-icon[data-tone="note"] { background: var(--pr-accent-quiet); color: var(--pr-accent); }
+.pr-item-title { font-size: var(--pr-text-md); line-height: 1.45; margin: 0; }
+.pr-item-meta { font-size: var(--pr-text-sm); line-height: 1.5; color: var(--pr-text-tertiary); margin: 3px 0 0; }
+.pr-note { font-size: var(--pr-text-sm); line-height: 1.6; color: var(--pr-text-tertiary); margin: var(--pr-space-3) 0 0; max-width: 70ch; }
+.pr-link {
+  font-size: var(--pr-text-md); color: var(--pr-link); text-decoration: none;
+  display: inline-block; padding: var(--pr-space-2) 0; min-height: 40px;
+}
+.pr-link:hover { text-decoration: underline; }
+
+/* Tokens the shared chart components read, mapped from the Pearl Rose set so
+   those components are reused rather than reimplemented. */
+.c4 {
+  --po-ink: var(--pr-ink-900);
+  --po-ink-2: var(--pr-ink-700);
+  --po-ink-3: var(--pr-ink-500);
+  --po-pearl-line: var(--pr-rule);
+  --po-pearl-line-soft: var(--pr-rule-soft);
+  --po-blush-2: var(--pr-wash);
+  --po-surface: var(--pr-sheet);
+  --focus-ring: var(--pr-focus-ring);
+}
+
+/* The shared boundary note keeps its own 14px radius everywhere else; inside
+   this scope it takes the panel token so the page shows three radii, not four.
+   Scoped, so /patient and the other previews are untouched. */
+.c4 .boundary-note { border-radius: var(--pr-radius-panel); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-btn, .pr-pills button, .pr-nav-list a, .pr-nav-list .pr-nav-btn { transition: none; }
+}
+
+/* ── Below 900px: the rail becomes a wrapped word row ───────────────────── */
+@media (max-width: 900px) {
+  .pr-shell { grid-template-columns: minmax(0, 1fr); }
+  .pr-rail, .pr-main { min-width: 0; }
+  .pr-rail {
+    position: static; border-right: 0;
+    border-bottom: 1px solid var(--pr-border-hairline);
+    padding: var(--pr-space-3) 18px; gap: var(--pr-space-3);
+  }
+  .pr-nav-list { flex-direction: row; flex-wrap: wrap; gap: 2px 4px; }
+  .pr-nav-list a,
+  .pr-nav-list .pr-nav-btn { margin-left: 0; padding: 9px 11px; }
+  .pr-rail-foot { display: none; }
+  .pr-main { padding: 18px 18px 56px; }
+  .pr-header { padding: 18px 16px; }
+  .pr-header-top { align-items: flex-start; gap: var(--pr-space-3); }
+  .pr-actions { width: 100%; }
+  .pr-actions .pr-btn { flex: 1; justify-content: center; }
+  .pr-sheet { padding: var(--pr-space-3) var(--pr-space-3) 8px; }
+  .pr-title { font-size: var(--pr-text-2xl); }
+}
+
+/* ── At phone width the header must not become the page ─────────────────
+ * Measured at 320x568 the header ran 683px - more than the viewport - because
+ * four figures stacked in one column at 32px each. Two columns at a smaller
+ * numeral puts the first real content inside the opening screen without
+ * hiding anything: every figure and every label is still present.
+ */
+@media (max-width: 560px), (max-height: 620px) {
+  /* Order, not omission. Below this size the figures move directly under the
+     title and the two actions follow them, so the patient's own numbers are
+     the first thing after the identity rather than the last. Nothing is
+     hidden: every figure, every label and both actions are still present. */
+  /* Nine pixels decided whether the patient's first number was on screen at
+     320x568, so the gaps tighten one step here. */
+  .c4 { --pr-stack: var(--pr-space-3); }
+  .pr-stack { gap: var(--pr-space-3); }
+  .pr-header { display: flex; flex-direction: column; }
+  .pr-header-top { display: contents; }
+  .pr-header-top > div:first-child { order: 1; }
+  .pr-figures { order: 2; }
+  .pr-actions { order: 3; margin-top: var(--pr-space-3); }
+
+  .pr-figures { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: var(--pr-space-3); }
+  .pr-figure { padding: 11px 12px; gap: 4px; }
+  .pr-figure-value { font-size: var(--pr-text-2xl); }
+  .pr-figure-value--text { font-size: var(--pr-text-md); padding-top: 3px; }
+  .pr-figure-label { font-size: var(--pr-text-xs); line-height: 1.4; }
+  .pr-facts { font-size: var(--pr-text-sm); margin-top: 5px; line-height: 1.45; }
+  .pr-facts-sep { padding: 0 6px; }
+  .pr-header { padding: 14px 14px 12px; }
+  .pr-kicker { font-size: var(--pr-text-xs); margin-bottom: 4px; }
+}
+
+@media (max-width: 380px) {
+  .pr-main { padding: 16px 14px 48px; }
+  .pr-title { font-size: var(--pr-text-xl); }
+}

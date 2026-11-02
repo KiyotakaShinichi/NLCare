@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { sendMyChatStream } from "../../src/api/client.patient";
+import { OUTCOME_UNKNOWN_MESSAGE, isOutcomeUnknown, sendMyChatStream } from "../../src/api/client.patient";
 
 function streamResponse(chunks: string[]): Response {
   const encoder = new TextEncoder();
@@ -55,22 +55,23 @@ describe("patient chat streaming transport", () => {
     );
   });
 
-  it("ignores malformed SSE frames but requires a final answer", async () => {
+  it("ignores malformed SSE frames but requires a final answer (ending without one is an unknown outcome)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(streamResponse([
       "not-an-event\n\n",
       "event: answer\ndata: not-json\n\n",
     ])));
-    await expect(sendMyChatStream("hello")).rejects.toThrow("ended without an answer");
+    const err = await sendMyChatStream("hello").catch((e) => e);
+    expect(isOutcomeUnknown(err)).toBe(true);
   });
 
-  it("surfaces explicit server error events", async () => {
+  it("treats an explicit server error event as an unknown outcome: the pipeline had started", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(streamResponse([
       'event: error\ndata: {"error":"The support service is unavailable"}\n\n',
     ])));
-    await expect(sendMyChatStream("hello")).rejects.toThrow("support service is unavailable");
+    await expect(sendMyChatStream("hello")).rejects.toThrow(OUTCOME_UNKNOWN_MESSAGE);
   });
 
-  it("converts aborts into a patient-safe timeout message", async () => {
+  it("converts aborts into an unknown-outcome message that makes no claim about saving", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", vi.fn().mockImplementation((_url, options: RequestInit) => (
       new Promise<Response>((_resolve, reject) => {
@@ -79,7 +80,7 @@ describe("patient chat streaming transport", () => {
     )));
 
     const pending = sendMyChatStream("hello");
-    const rejection = expect(pending).rejects.toThrow(/timed out.*no record was saved/i);
+    const rejection = expect(pending).rejects.toThrow(OUTCOME_UNKNOWN_MESSAGE);
     await vi.advanceTimersByTimeAsync(45_000);
     await rejection;
   });

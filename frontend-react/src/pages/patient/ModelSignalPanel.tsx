@@ -56,14 +56,16 @@ export function ModelSignalPanel({ report }: Props) {
   return (
     <SectionCard title="Model signal" icon={Cpu} meta="synthetic-only">
       <SafetyBanner tone="warning" compact className="mb-4">
-        Synthetic engineering signal · Not a clinical prediction · For clinician review.
+        Synthetic engineering signal · Not a clinical prediction.
       </SafetyBanner>
 
       {recordChange && (
-        <div className="model-explanation-envelope mb-4" aria-label="Confirmed record change summary">
+        <section className="model-explanation-envelope mb-4" aria-labelledby="model-record-change-title">
           <div className="model-explanation-envelope__header">
             <Info size={14} aria-hidden="true" />
-            <strong>What changed in confirmed records</strong>
+            <h3 id="model-record-change-title" className="model-explanation-envelope__title">
+              What changed in confirmed records
+            </h3>
           </div>
           <p><strong>{recordChange.headline}.</strong> {recordChange.patient_summary}</p>
           {recordChange.observations.length > 0 && (
@@ -80,7 +82,7 @@ export function ModelSignalPanel({ report }: Props) {
           <p className="model-explanation-envelope__next">
             <strong>Safe next step:</strong> {recordChange.safe_next_steps[0]}
           </p>
-        </div>
+        </section>
       )}
 
       <details className="model-number-guide mb-4">
@@ -93,10 +95,12 @@ export function ModelSignalPanel({ report }: Props) {
       </details>
 
       {xai && (
-        <div className="model-explanation-envelope mb-4" aria-label="Synthetic model explanation">
+        <section className="model-explanation-envelope mb-4" aria-labelledby="model-xai-title">
           <div className="model-explanation-envelope__header">
             <Info size={14} aria-hidden="true" />
-            <strong>{xai.status === "abstained" ? "Why the model abstained" : "How to read this output"}</strong>
+            <h3 id="model-xai-title" className="model-explanation-envelope__title">
+              {xai.status === "abstained" ? "Why the model abstained" : "How to read this output"}
+            </h3>
           </div>
           <p>{xai.output.meaning}</p>
           <p><strong>How calculated:</strong> {xai.output.calculation}</p>
@@ -117,7 +121,7 @@ export function ModelSignalPanel({ report }: Props) {
           {xai.safe_next_steps[0] && (
             <p className="model-explanation-envelope__next"><strong>Safe next step:</strong> {xai.safe_next_steps[0]}</p>
           )}
-        </div>
+        </section>
       )}
 
       {hybrid && (

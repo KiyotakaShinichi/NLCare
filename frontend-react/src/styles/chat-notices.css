@@ -1,0 +1,62 @@
+/* Chat safety notices: the unknown-outcome hold, the send error, and the paused
+ * line on a preview card. Imported by ChatPanel.tsx; index.css is frozen at its
+ * current size by the shrink-only LOC ratchet. */
+
+/* The app's root font size is 14px, so rem sizes are read against that. The
+   notice sizes below are floored in px so they stay at or above 14px. */
+.chat-confirmation-card > .chat-confirmation-paused {
+  display: block;
+  margin-top: 8px;
+  color: #78350f;
+  font-size: max(15px, 1rem);
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+/* Safety notices in the chat: the unknown-outcome hold and the send error.
+   Same colours and wording as before; larger type, looser leading and a
+   structure that wraps cleanly at narrow widths. */
+.chat-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: 10px;
+  font-size: max(15px, 1rem);
+  line-height: 1.5;
+}
+.chat-notice > svg { flex-shrink: 0; margin-top: 3px; }
+.chat-notice-text { flex: 1; min-width: min(100%, 200px); overflow-wrap: anywhere; }
+.chat-notice--hold { background: #fffbeb; border-color: #fde68a; color: #78350f; }
+.chat-notice--error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.chat-notice-dismiss {
+  min-width: 32px;
+  min-height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.chat-notice-dismiss:hover { background: rgba(185, 28, 28, 0.08); }
+
+.chat-hold-refresh {
+  min-height: 40px;
+  border: 1px solid #92400e;
+  border-radius: 8px;
+  padding: 8px 14px;
+  background: #fff;
+  color: #78350f;
+  font-size: max(14px, 1rem);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.chat-hold-refresh:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}

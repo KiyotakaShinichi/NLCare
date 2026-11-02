@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Activity,
   FlaskConical,
@@ -104,6 +104,57 @@ export function ComposerToolButton({ onSelect }: Props) {
     }
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
+  }, [open]);
+
+  // Keep the open menu fully inside the viewport, on both axes.
+  //
+  // It used to be absolutely positioned against the trigger, with a horizontal
+  // clamp. That left it 100-160px below the viewport at 320x568 and at 200% zoom,
+  // and a vertical nudge did not fix it: the menu lives inside the dashboard's
+  // scrolling container, the trigger is itself far below the fold, and opening the
+  // menu focuses its first item, which scrolls that container - taking an
+  // absolutely positioned menu with it. So the menu is placed against the
+  // viewport (`position: fixed`), above the trigger when there is room and below
+  // it otherwise, clamped 16px inside on every side, with its height capped so a
+  // very short viewport scrolls inside the menu instead of clipping it.
+  //
+  // If an ancestor establishes its own containing block (a transform, for
+  // instance) the measured position will differ from the requested one; the
+  // difference is applied once. Menu semantics, arrow-key navigation, Escape and
+  // focus restoration are untouched; only geometry changes.
+  useLayoutEffect(() => {
+    const pop = popRef.current;
+    if (!open || !pop) return;
+    const margin = 16;
+    const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+    const place = () => {
+      const trigger = triggerRef.current?.getBoundingClientRect();
+      pop.style.position = "fixed";
+      pop.style.bottom = "auto";
+      pop.style.transform = "";
+      pop.style.maxHeight = `${Math.max(0, window.innerHeight - 2 * margin)}px`;
+      pop.style.overflowY = "auto";
+      const height = pop.getBoundingClientRect().height;
+      const width = pop.offsetWidth;
+      const left = clamp(trigger?.left ?? margin, margin, window.innerWidth - margin - width);
+      let top = (trigger?.top ?? window.innerHeight) - 8 - height;       // above the trigger
+      if (top < margin && trigger) top = trigger.bottom + 8;             // no room above: below it
+      top = clamp(top, margin, window.innerHeight - margin - height);
+      pop.style.left = `${left}px`;
+      pop.style.top = `${top}px`;
+      const placed = pop.getBoundingClientRect();
+      const dx = left - placed.left;
+      const dy = top - placed.top;
+      if (Math.abs(dx) >= 1) pop.style.left = `${left + dx}px`;
+      if (Math.abs(dy) >= 1) pop.style.top = `${top + dy}px`;
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -245,7 +296,10 @@ function ToolGroup({ label, children }: { label: string; children: React.ReactNo
   return (
     <div className="composer-tool-group" role="group" aria-label={label}>
       <p className="composer-tool-group-label">{label}</p>
-      <ul className="composer-tool-list">{children}</ul>
+      {/* role="none": the menu pattern is menu > group > menuitem. A bare <ul>
+          keeps list semantics, so its role="none" <li> children fail axe's
+          `list` rule and hide the menuitems from `aria-required-children`. */}
+      <ul className="composer-tool-list" role="none">{children}</ul>
     </div>
   );
 }

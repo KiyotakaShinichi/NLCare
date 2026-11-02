@@ -5,6 +5,7 @@ import { LabCard } from "../../components/ui/LabCard";
 import { RelativeTime } from "../../components/ui/RelativeTime";
 import { NON_DIAGNOSTIC_DISCLAIMER } from "../../lib/clinical-constants";
 import type { PatientReport } from "../../types/api";
+import { summariseRecords } from "../../lib/recordIntegrity";
 
 // Recharts is ~200 KB gzipped — code-split so the chart only loads when the
 // labs panel actually renders.
@@ -51,13 +52,21 @@ export function LabsPanel({ report, lastFetchedAt }: Props) {
 
   const lastSampleDate = history.length > 0 ? history[history.length - 1].date : null;
 
+  const sampleCount = summariseRecords(history, (p) => p.date).distinct.length;
+
   return (
     <SectionCard
       title="Lab values (CBC)"
       icon={FlaskConical}
       meta={
         <span className="flex items-center gap-2">
-          <span>{history.length > 0 ? `${history.length} samples` : "no data"}</span>
+          {/* Distinct results. The record holds rows identical in every field,
+              so a raw length reported 38 samples for 17 results. */}
+          <span>
+            {sampleCount > 0
+              ? `${sampleCount} ${sampleCount === 1 ? "result" : "results"}`
+              : "no data"}
+          </span>
           {lastFetchedAt != null && <span style={{ opacity: 0.6 }}>·</span>}
           <RelativeTime timestamp={lastFetchedAt ?? null} prefix="updated" />
         </span>
@@ -72,7 +81,17 @@ export function LabsPanel({ report, lastFetchedAt }: Props) {
         </span>
       }
     >
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      {/* Wraps on the space actually available rather than on screen width.
+          A fixed three-column grid gave each card about 107px at 390px and
+          clipped "HEMOGLOBIN" and "PLATELETS" mid-word. A viewport breakpoint
+          was not enough either: this grid sits inside a column narrower than
+          the window, so at 200% zoom three cards still fitted the media query
+          while each measured 103px. 180px is the width a card needs for its
+          name, value, unit and reference range. */}
+      <div
+        className="grid gap-3 mb-4"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}
+      >
         <LabCard
           labKey="wbc"
           icon={Shield}

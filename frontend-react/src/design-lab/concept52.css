@@ -1,0 +1,411 @@
+/* Concept 5.2 — Pearl Rose Clinical Editorial.
+ *
+ * Scoped to `.c52`. Nothing here touches `:root`, the shared component
+ * stylesheets, `/patient`, `/design/5`, `/design/51a` or `/design/51b`.
+ *
+ * This is a consolidation, not a merge of the two 5.1 stylesheets. 5.1B's
+ * structure is the foundation - the sticky status rail, the KPI strip, toolbar
+ * section heads and the tablet composition. 5.1A contributes the editorial
+ * voice: a serif display face from the system stack, the record-age standfirst,
+ * the section eyebrow rule, and the rhythm around them. Every decision taken
+ * from either side is restated here against the Pearl Rose tokens rather than
+ * copied, so there is one coherent set of rules to read.
+ *
+ * Sizes are px, as in `pearl-rose.css`: `:root` is 14px, so a rem here would
+ * render 12.5% under its nominal value.
+ */
+
+.c52 {
+  /* ── Type: seven steps, one body size ─────────────────────────────────
+     Carried from 5.1B, which measured the most disciplined ramp of the three
+     (92% of text at 16px with seven distinct sizes). `sm` and `md` collapse
+     deliberately: one body size is enough. The display sizes are pulled back
+     from 5.1A's editorial scale so the page does not read as a long-form
+     article - 5.1A's 50px title was part of why it ran 4.8 screens. */
+  --pr-text-xs: 14px;   /* uppercase eyebrow labels only */
+  --pr-text-sm: 16px;   /* body: prose, notices, captions, metas, table cells */
+  --pr-text-md: 16px;
+  --pr-text-lg: 19px;   /* ledes, h3 */
+  --pr-text-xl: 22px;
+  --pr-text-2xl: 27px;  /* section titles */
+  --pr-text-3xl: 32px;  /* figure values */
+  --pr-text-4xl: 40px;  /* page title */
+
+  /* ── Rhythm ───────────────────────────────────────────────────────────
+     Between the two: looser than 5.1B's dashboard, tighter than 5.1A's
+     spread, because the brief asks for editorial polish without the vertical
+     expansion that came with it. */
+  --pr-space-4: 20px;
+  --pr-space-5: 30px;
+  --pr-space-6: 46px;
+  --pr-stack: var(--pr-space-4);
+  --pr-section-gap: var(--pr-space-5);
+  --pr-measure: 68ch;
+
+  /* 5.1A's display voice. No webfont is loaded, so there is no extra request
+     and no layout shift on first paint. */
+  --pr-font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+
+  /* Subtle depth. One shadow, softer than the system default, used only on
+     the sheets that hold data. */
+  --c52-shadow-card: 0 1px 2px rgba(22, 21, 28, .04), 0 12px 28px -24px rgba(22, 21, 28, .34);
+  --c52-rule-accent: var(--pr-rose-600);
+}
+
+/* The 14px floor problem from 5.1: table cells and chart-panel text carry
+   explicit rules in shared stylesheets and beat inheritance, so the scale
+   alone cannot reach them. Setting the inherited size on the scope root and
+   naming the stubborn selectors does, without touching `:root` or any shared
+   component. */
+.c52 { font-size: var(--pr-text-sm); }
+.c52 :where(.lab-trend-table, .po-table, table) :where(td, th),
+.c52 .lab-trend-unit,
+.c52 .po-chart-note,
+.c52 .lab-trend-count,
+.c52 .lab-trend-table-hint,
+.c52 .pr-note,
+.c52 .pr-caption,
+.c52 .pr-item-meta,
+.c52 .pr-figure-label,
+.c52 .pr-rail-foot { font-size: var(--pr-text-sm); line-height: 1.6; }
+
+/* Chart axis text is set through Recharts props on shared components - 12px
+   ticks and a 10px axis label, both genuinely below the 13px floor this
+   milestone forbids. The components are shared with `/patient`, so they are
+   not edited; the sizes are raised inside this scope instead. `!important` is
+   required because Recharts writes the size as an inline style. */
+.c52 .recharts-cartesian-axis-tick text,
+.c52 .recharts-label,
+.c52 text.recharts-text { font-size: 13px !important; }
+
+/* When every CBC series breaks in the same places the portal states the gap
+   once for the group and sets this attribute, and the three per-panel copies
+   are removed from the DOM - for assistive technology too, not hidden from
+   sight only. When the series disagree the attribute is absent and each panel
+   speaks for itself. */
+.c52 [data-lab-gaps="grouped"] .lab-trend-gap-note { display: none; }
+
+/* ── Shell and rail ─────────────────────────────────────────────────────── */
+
+.c52 .pr-stack { gap: var(--pr-space-4); max-width: 1320px; }
+.c52 .pr-rail { background: none; border-right: 1px solid var(--pr-border-soft); }
+.c52 .pr-nav-list a,
+.c52 .pr-nav-list .pr-nav-btn { border-radius: var(--pr-radius-control); }
+.c52 .pr-rail-foot { border-top: 1px solid var(--pr-border-soft); padding-top: var(--pr-space-3); }
+
+/* ── Header: editorial identity over a clinical figure strip ────────────── */
+
+.c52 .pr-header { background: none; padding: 0; border-radius: 0; }
+.c52 .pr-title {
+  font-family: var(--pr-font-display);
+  letter-spacing: -.015em;
+  line-height: 1.08;
+}
+.c52 .pr-kicker {
+  font-size: var(--pr-text-xs);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--pr-text-tertiary);
+}
+
+/* 5.1A's standfirst: the record's age is the subtitle, so the first thing
+   read after the title is how old the record is. */
+.c52 .c52-standfirst {
+  margin: var(--pr-space-3) 0 0;
+  font-family: var(--pr-font-display);
+  font-size: var(--pr-text-xl);
+  line-height: 1.45;
+  color: var(--pr-text-secondary);
+  max-width: 42ch;
+}
+.c52 .c52-standfirst strong { color: var(--pr-text-primary); font-weight: 600; }
+
+/* 5.1B's KPI strip, with serif numerals and a hairline grid. */
+.c52 .pr-figures {
+  margin-top: var(--pr-space-4);
+  gap: 1px;
+  /* Trimmed from space-4: with the standfirst in place the first chart sat at
+     y=913 against a 900px fold, 13px short of the thing 5.1B had achieved. */
+  background: var(--pr-border-soft);
+  border: 1px solid var(--pr-border-soft);
+  border-radius: var(--pr-radius-panel);
+  overflow: hidden;
+}
+.c52 .pr-figure { background: var(--pr-surface-sheet); padding: var(--pr-space-3) var(--pr-space-4); }
+.c52 .pr-figure-value {
+  font-family: var(--pr-font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+.c52 .pr-figure-value--text { font-size: var(--pr-text-xl); line-height: 1.25; }
+.c52 .pr-figure-label { color: var(--pr-text-tertiary); }
+
+/* ── Sections: toolbar head from 5.1B, eyebrow rule from 5.1A ───────────── */
+
+.c52 .pr-section-head {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--pr-space-4);
+  flex-wrap: wrap;
+  padding-top: var(--pr-space-4);
+  padding-bottom: var(--pr-space-3);
+  border-bottom: 1px solid var(--pr-border-hairline);
+}
+.c52 .pr-section-head::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 44px;
+  height: 2px;
+  background: var(--c52-rule-accent);
+}
+.c52 .pr-h2 {
+  font-family: var(--pr-font-display);
+  letter-spacing: -.01em;
+  line-height: 1.18;
+}
+.c52 .pr-h3 { font-family: var(--pr-font-display); }
+.c52 .pr-lede { max-width: var(--pr-measure); }
+
+/* ── Sheets: the one place depth is used ────────────────────────────────── */
+
+.c52 .pr-sheet {
+  border-radius: var(--pr-radius-panel);
+  padding: var(--pr-space-4);
+  box-shadow: var(--c52-shadow-card);
+}
+.c52 .pr-caption { max-width: 76ch; padding-top: var(--pr-space-3); }
+
+/* ── Notices: one annotation species, tone in the rule only ─────────────── */
+
+.c52 .pr-notice {
+  background: none;
+  border: 0;
+  border-left: 3px solid var(--pr-border-hairline);
+  border-radius: 0;
+  padding: 2px 0 2px var(--pr-space-4);
+  font-size: var(--pr-text-sm);
+  line-height: 1.6;
+  color: var(--pr-text-secondary);
+  max-width: 76ch;
+}
+.c52 .pr-notice--info { border-left-color: var(--pr-teal-600); }
+.c52 .pr-notice--info svg { color: var(--pr-teal-600); }
+.c52 .pr-notice--question { border-left-color: var(--pr-warn-700); }
+.c52 .pr-notice--question svg { color: var(--pr-warn-700); }
+.c52 .pr-notice--ok { border-left-color: var(--pr-ok-600); }
+.c52 .pr-notice--ok svg { color: var(--pr-ok-600); }
+.c52 .pr-notice--critical { border-left-color: var(--pr-crit-600); }
+.c52 .pr-notice--critical svg { color: var(--pr-crit-600); }
+.c52 .pr-notice-title { display: block; color: var(--pr-text-primary); }
+
+.c52 .boundary-note { padding: var(--pr-space-3) var(--pr-space-4); border-radius: var(--pr-radius-control); }
+.c52 .boundary-note-body,
+.c52 .boundary-note-detail { font-size: var(--pr-text-sm); line-height: 1.55; max-width: 96ch; }
+
+/* ── Progressive disclosure for data-quality notes ──────────────────────
+   The brief asks for the explanations to be preserved but not repeated as
+   stacked paragraphs. They become a disclosure whose summary names how many
+   notes there are and what they concern, so nothing is hidden by surprise. */
+
+.c52 .c52-notes {
+  margin-top: var(--pr-space-3);
+  border: 1px solid var(--pr-border-soft);
+  border-radius: var(--pr-radius-control);
+  background: var(--pr-surface-ground);
+}
+.c52 .c52-notes > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: var(--pr-space-3) var(--pr-space-4);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: var(--pr-space-2);
+  font-size: var(--pr-text-sm);
+  color: var(--pr-text-secondary);
+  border-radius: var(--pr-radius-control);
+}
+.c52 .c52-notes > summary::-webkit-details-marker { display: none; }
+.c52 .c52-notes > summary::after {
+  content: "";
+  width: 7px; height: 7px;
+  margin-left: auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform .14s ease;
+}
+.c52 .c52-notes[open] > summary::after { transform: rotate(-135deg); }
+.c52 .c52-notes[open] > summary { border-bottom: 1px solid var(--pr-border-soft); border-radius: var(--pr-radius-control) var(--pr-radius-control) 0 0; }
+.c52 .c52-notes > summary:hover { background: var(--pr-accent-quiet); color: var(--pr-text-primary); }
+.c52 .c52-notes-body { padding: var(--pr-space-4); display: grid; gap: var(--pr-space-4); }
+.c52 .c52-notes-count {
+  font-size: var(--pr-text-xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--pr-text-tertiary);
+  background: var(--pr-surface-sheet);
+  border: 1px solid var(--pr-border-hairline);
+  border-radius: var(--pr-radius-pill);
+  padding: 1px 9px;
+}
+
+/* ── The dashboard grid and the status rail ─────────────────────────────── */
+
+.c52 .c52-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 328px;
+  gap: var(--pr-space-5);
+  align-items: start;
+}
+.c52 .c52-col { display: flex; flex-direction: column; gap: var(--pr-section-gap); min-width: 0; }
+.c52 .c52-aside {
+  position: sticky;
+  top: var(--pr-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pr-space-4);
+  min-width: 0;
+  /* Never taller than the viewport, so it cannot trap content off-screen. */
+  max-height: calc(100vh - var(--pr-space-5));
+  overflow: auto;
+}
+.c52 .c52-card {
+  background: var(--pr-surface-sheet);
+  border: 1px solid var(--pr-border-hairline);
+  border-radius: var(--pr-radius-panel);
+  padding: var(--pr-space-4);
+  box-shadow: var(--c52-shadow-card);
+}
+.c52 .c52-card-title {
+  margin: 0 0 var(--pr-space-3);
+  font-family: var(--pr-font-display);
+  font-size: var(--pr-text-lg);
+  font-weight: 600;
+  color: var(--pr-text-primary);
+}
+.c52 .c52-status dl { margin: 0; display: grid; gap: var(--pr-space-4); }
+.c52 .c52-status dt {
+  margin: 0 0 3px;
+  font-size: var(--pr-text-xs);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--pr-text-tertiary);
+}
+.c52 .c52-status dd {
+  margin: 0;
+  font-size: var(--pr-text-sm);
+  line-height: 1.55;
+  color: var(--pr-text-secondary);
+}
+.c52 .c52-status dd strong { color: var(--pr-text-primary); font-weight: 600; }
+/* A hairline between facts, so four statements do not read as one paragraph. */
+.c52 .c52-status dl > div + div { border-top: 1px solid var(--pr-border-soft); padding-top: var(--pr-space-4); }
+
+/* ── Research model ─────────────────────────────────────────────────────── */
+
+.c52 .c52-research { display: grid; gap: var(--pr-space-4); }
+.c52 .c52-unavailable {
+  margin: 0;
+  padding: var(--pr-space-5);
+  border: 1px solid var(--pr-border-hairline);
+  border-radius: var(--pr-radius-panel);
+  background: var(--pr-surface-ground);
+  font-size: var(--pr-text-sm);
+  line-height: 1.65;
+  color: var(--pr-text-secondary);
+  max-width: 76ch;
+}
+.c52 .c52-unavailable strong { display: block; color: var(--pr-text-primary); margin-bottom: 6px; font-weight: 600; }
+.c52 .c52-demo {
+  border: 1px dashed var(--pr-warn-700);
+  border-radius: var(--pr-radius-panel);
+  padding: var(--pr-space-4);
+  background: var(--pr-surface-sheet);
+}
+.c52 .c52-demo-head { display: flex; align-items: center; gap: var(--pr-space-3); flex-wrap: wrap; margin-bottom: var(--pr-space-4); }
+.c52 .c52-badge {
+  display: inline-block;
+  font-size: var(--pr-text-xs);
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #6a4a00;
+  background: var(--pr-warn-050);
+  border: 1px solid #e3cfa1;
+  border-radius: var(--pr-radius-pill);
+  padding: 3px 10px;
+}
+.c52 .c52-research-grid {
+  margin: 0;
+  display: grid;
+  gap: var(--pr-space-4) var(--pr-space-5);
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+}
+.c52 .c52-research-grid dt {
+  font-size: var(--pr-text-xs);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--pr-text-tertiary);
+  margin-bottom: 4px;
+}
+.c52 .c52-research-grid dd { margin: 0; font-size: var(--pr-text-sm); line-height: 1.55; color: var(--pr-text-secondary); }
+.c52 .c52-research-grid dd strong { color: var(--pr-text-primary); font-weight: 600; font-family: var(--pr-font-display); }
+.c52 .c52-details > summary {
+  cursor: pointer;
+  font-size: var(--pr-text-sm);
+  color: var(--pr-link);
+  padding: var(--pr-space-2) 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.c52 .c52-details > p { margin: var(--pr-space-2) 0 0; font-size: var(--pr-text-sm); line-height: 1.6; color: var(--pr-text-secondary); max-width: 76ch; }
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+
+.c52 .c52-tabs { display: flex; gap: var(--pr-space-4); border-bottom: 1px solid var(--pr-border-hairline); }
+.c52 .c52-tabs button {
+  appearance: none; background: none; border: 0;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  padding: var(--pr-space-3) 2px; min-height: 44px;
+  font: inherit; font-size: var(--pr-text-sm);
+  color: var(--pr-text-tertiary); cursor: pointer;
+}
+.c52 .c52-tabs button[aria-selected="true"] { color: var(--pr-accent); border-bottom-color: var(--pr-accent); font-weight: 600; }
+.c52 .c52-tabs button:hover[aria-selected="false"] { color: var(--pr-text-primary); }
+
+/* ── Chat-state previews, restyled in scope ─────────────────────────────── */
+
+.c52 .c5-state { border-radius: var(--pr-radius-panel); box-shadow: var(--c52-shadow-card); }
+.c52 .c5-state h3 { font-family: var(--pr-font-display); font-size: var(--pr-text-lg); }
+.c52 .c5-bubble,
+.c52 .c5-draft > div,
+.c52 .c5-cites li,
+.c52 .c5-status { font-size: var(--pr-text-sm); line-height: 1.6; }
+.c52 .c5-badge { font-size: var(--pr-text-xs); }
+.c52 .c5-transcript { border-radius: var(--pr-radius-control); }
+
+/* ── Interaction states ─────────────────────────────────────────────────── */
+
+.c52 .pr-nav-list a,
+.c52 .pr-nav-list .pr-nav-btn,
+.c52 .pr-btn,
+.c52 .pr-pills button,
+.c52 .pr-link,
+.c52 .c52-tabs button,
+.c52 .pr-list li { transition: background-color .14s ease, color .14s ease, border-color .14s ease; }
+.c52 .pr-nav-list a:hover,
+.c52 .pr-nav-list .pr-nav-btn:hover { background: var(--pr-accent-quiet); color: var(--pr-text-primary); }
+.c52 .pr-btn--primary:hover { background: var(--pr-accent-hover); }
+.c52 .pr-btn--quiet:hover { border-color: var(--pr-accent); color: var(--pr-accent); }
+.c52 .pr-pills button:hover:not([aria-pressed="true"]) { background: var(--pr-accent-quiet); }
+.c52 .pr-link:hover { text-decoration: underline; }
+.c52 .pr-list li { border-radius: var(--pr-radius-control); }
+.c52 .pr-list li:hover { background: var(--pr-surface-wash); }
+.c52 .pr-sheet:focus-within,
+.c52 .lab-trend-panel:focus-within { border-color: var(--pr-accent); }

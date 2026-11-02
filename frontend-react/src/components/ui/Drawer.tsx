@@ -97,7 +97,7 @@ export function Drawer({
         aria-describedby={description ? "drawer-description" : undefined}
         tabIndex={-1}
       >
-        <header className="drawer-header">
+        <div className="drawer-header">
           <div style={{ minWidth: 0, flex: 1 }}>
             <h2 id="drawer-title" className="drawer-title">{title}</h2>
             {description && (
@@ -114,7 +114,7 @@ export function Drawer({
               <X size={16} aria-hidden="true" />
             </button>
           )}
-        </header>
+        </div>
         <div className="drawer-body">{children}</div>
         {footer && <footer className="drawer-footer">{footer}</footer>}
       </div>

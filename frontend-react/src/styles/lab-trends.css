@@ -1,0 +1,178 @@
+/* CBC trend small multiples.
+ *
+ * Imported by LabTrendsChart.tsx rather than added to index.css: the chart is
+ * lazily loaded, so its styles ship in the same chunk and cost nothing on the
+ * views that never render it. index.css is also frozen at its current size by
+ * the shrink-only LOC ratchet.
+ */
+
+.lab-trends {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* One column per analyte on wide screens, stacking before the charts get too
+   narrow to read a date axis. */
+.lab-trend-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 1100px) {
+  .lab-trend-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lab-trend-panel {
+  min-width: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 12px 12px 6px;
+  background: var(--surface);
+}
+
+.lab-trend-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+/* ─── Readable type ──────────────────────────────────────────────────────
+ * Sizes here are px, not rem, and that is deliberate.
+ *
+ * `:root` sets `font-size: 14px` (index.css), so every rem in this codebase
+ * resolves 12.5% smaller than it reads: `0.78rem` is 10.92px, not 12.5px, and
+ * `0.72rem` is 10.08px. That is how the chart's data tables came to render at
+ * 10.9px across 153 nodes - the numbers looked reasonable in the stylesheet
+ * and were not. Until the root size is addressed as part of the design system,
+ * px here states the rendered size plainly and cannot drift with it.
+ *
+ * Floor is 14px for dense tabular data and ~15px for prose around the charts.
+ */
+
+.lab-trend-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+/* The unit travels with the name everywhere it appears, so no reader has to
+   infer it from the axis alone. */
+.lab-trend-unit {
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.lab-trend-count {
+  font-size: 14px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.lab-trend-empty {
+  margin: 0;
+  padding: 22px 4px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--text-dim);
+}
+
+/* ─── Table alternative ─────────────────────────────────────────────────── */
+
+.lab-trend-table-wrap {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 10px;
+}
+
+.lab-trend-table-toggle {
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text);
+  padding: 10px 2px;
+  min-height: 44px;
+  list-style: revert;
+}
+
+.lab-trend-table-toggle:hover {
+  color: var(--text);
+}
+
+/* The scroller is focusable and announced, and says so in words. A horizontal
+   scroll that only reveals itself to a mouse drag is not a readability fix. */
+.lab-trend-table-scroll {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.lab-trend-table-scroll:focus-visible {
+  outline: 2px solid var(--focus-ring, #0e7490);
+  outline-offset: 2px;
+}
+
+.lab-trend-table-hint {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+/* The table caption is read, not hidden: it says what the columns mean. */
+.lab-trend-table caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  padding-bottom: 8px;
+}
+
+.lab-trend-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.lab-trend-table th,
+.lab-trend-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+}
+
+.lab-trend-table thead th {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.lab-trend-table tbody th {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.lab-trend-table td {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Missing data is stated, never blank: an empty cell reads as zero. */
+.lab-trend-missing {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* A gap is stated in words as well as drawn as a break: a broken line alone
+   can read as a rendering artefact rather than as missing data. */
+.lab-trend-gap-note {
+  margin: 8px 0 2px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+}

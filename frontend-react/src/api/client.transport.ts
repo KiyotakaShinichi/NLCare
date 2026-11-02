@@ -28,29 +28,62 @@ export class ApiError extends Error {
     this.status = status;
   }
 
-  /** 4xx responses are product states: unauthorised, invalid input, not found. */
+  /**
+   * 4xx responses are product states: unauthorised, invalid input, not found.
+   * 408 is excluded: it is a timeout, not a decision the server made.
+   */
   get isExpected(): boolean {
-    return this.status >= 400 && this.status < 500;
+    return this.status >= 400 && this.status < 500 && this.status !== 408;
   }
+}
+
+/**
+ * Longest structured error message that is shown to the user as written.
+ * Anything longer is not a sentence written for a person.
+ */
+const MAX_TRUSTED_MESSAGE_LENGTH = 300;
+
+/**
+ * A message is trusted only when the response contract supplied it as a short
+ * string in `detail` or `message` and it is not markup. Gateway pages,
+ * proxy text, stack traces and validation arrays never qualify.
+ */
+function trustedMessage(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim();
+  if (!text || text.length > MAX_TRUSTED_MESSAGE_LENGTH) return null;
+  if (/<\s*\/?\s*[a-z!]/i.test(text)) return null;
+  return text;
+}
+
+/** True when the HTTP status says nothing certain about whether the server acted. */
+export function isAmbiguousHttpStatus(status: number): boolean {
+  return status === 408 || status >= 500;
+}
+
+/**
+ * Fixed text for a response that carried no usable message. The raw body is
+ * never used: it can be a reverse proxy's HTML page or internal detail, and
+ * none of it was written for the person reading the screen.
+ */
+function fallbackMessage(status: number): string {
+  return isAmbiguousHttpStatus(status)
+    ? `The service did not respond as expected (HTTP ${status}).`
+    : `Request failed (${status})`;
 }
 
 export async function responseError(response: Response): Promise<ApiError> {
   const raw = await response.text().catch(() => "");
   if (raw) {
     try {
-      const payload = JSON.parse(raw) as { detail?: unknown; message?: unknown };
-      const message =
-        typeof payload.detail === "string"
-          ? payload.detail
-          : typeof payload.message === "string"
-            ? payload.message
-            : null;
+      const payload = JSON.parse(raw) as { detail?: unknown; message?: unknown } | null;
+      const message = trustedMessage(payload?.detail) ?? trustedMessage(payload?.message);
       if (message) return new ApiError(message, response.status);
     } catch {
-      return new ApiError(`Request failed (${response.status}): ${raw}`, response.status);
+      // Not JSON (an HTML gateway page, plain-text proxy error, truncated body).
     }
   }
-  return new ApiError(`Request failed (${response.status})`, response.status);
+  return new ApiError(fallbackMessage(response.status), response.status);
 }
 
 export function getToken(): string | null {

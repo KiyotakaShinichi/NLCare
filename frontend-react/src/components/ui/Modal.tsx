@@ -109,7 +109,7 @@ export function Modal({
         aria-describedby={description ? "modal-description" : undefined}
         tabIndex={-1}
       >
-        <header className="modal-header">
+        <div className="modal-header">
           <div style={{ minWidth: 0, flex: 1 }}>
             <h2 id="modal-title" className="modal-title">{title}</h2>
             {description && (
@@ -126,7 +126,7 @@ export function Modal({
               <X size={16} aria-hidden="true" />
             </button>
           )}
-        </header>
+        </div>
         <div className="modal-body">{children}</div>
         {footer && <footer className="modal-footer">{footer}</footer>}
       </div>

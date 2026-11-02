@@ -1,6 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
+// After index.css: the focus and reduced-motion baselines are deliberately
+// last so nothing in the main stylesheet can override them.
+import './styles/a11y.css'
 import App from './App.tsx'
 import { ToastProvider } from './components/ui/Toast'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'

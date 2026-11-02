@@ -71,32 +71,40 @@ export function SectionCard({
 
   return (
     <section className={clsx("app-card", padding && "p-4", className)}>
-      <header
+      {/* The whole header row stays clickable for pointer users, but the control
+          is a real button inside the heading: a header element cannot carry
+          role="button", and a role would also strip the heading's semantics. */}
+      <div
         className={clsx("app-card-header", headerInteractive && "app-card-header--clickable")}
         onClick={headerInteractive ? toggle : undefined}
-        role={headerInteractive ? "button" : undefined}
-        tabIndex={headerInteractive ? 0 : undefined}
-        aria-expanded={collapsible ? open : undefined}
-        aria-controls={collapsible ? bodyId : undefined}
-        onKeyDown={
-          headerInteractive
-            ? (e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  toggle();
-                }
-              }
-            : undefined
-        }
         style={collapsible && !open ? { paddingBottom: 0, marginBottom: 0, borderBottom: "none" } : undefined}
       >
         <h2 className="app-section-title">
-          {Icon && (
-            <span className="section-tile" aria-hidden="true">
-              <Icon size={14} />
-            </span>
+          {collapsible ? (
+            <button
+              type="button"
+              className="app-section-toggle"
+              aria-expanded={open}
+              aria-controls={bodyId}
+              onClick={(e) => { e.stopPropagation(); toggle(); }}
+            >
+              {Icon && (
+                <span className="section-tile" aria-hidden="true">
+                  <Icon size={14} />
+                </span>
+              )}
+              <span>{title}</span>
+            </button>
+          ) : (
+            <>
+              {Icon && (
+                <span className="section-tile" aria-hidden="true">
+                  <Icon size={14} />
+                </span>
+              )}
+              <span>{title}</span>
+            </>
           )}
-          <span>{title}</span>
         </h2>
         <div className="flex items-center gap-2">
           {meta && <span className="section-meta">{meta}</span>}
@@ -121,7 +129,7 @@ export function SectionCard({
             </span>
           )}
         </div>
-      </header>
+      </div>
       {(!collapsible || open) && (
         <div id={bodyId} className={bodyClassName}>{children}</div>
       )}

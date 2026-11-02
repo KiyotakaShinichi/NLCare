@@ -87,7 +87,7 @@ export function PatientBanner({ report, compact = false }: Props) {
         >
           <ShieldCheck size={14} style={{ color: "var(--rose-deep)", flexShrink: 0 }} aria-hidden="true" />
           <span style={{ fontSize: "0.78rem", lineHeight: 1.4 }}>
-            Shared with your care team for review.
+            This is your own record. This page does not show whether anyone on your care team has seen it.
           </span>
         </div>
       </div>

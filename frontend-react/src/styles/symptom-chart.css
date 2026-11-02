@@ -1,0 +1,91 @@
+/* Styles the symptom trend chart needs to render correctly.
+ *
+ * These used to live in pearl.css, which only the patient overview imports.
+ * The chart then rendered an unstyled legend anywhere else it was used - the
+ * counts ran straight into the labels ("nausea1fatigue2"). A component should
+ * carry the styles it depends on, so they travel with it and code-split with
+ * its chunk. Colour still comes from the --po-* tokens on :root, which a host
+ * surface may override.
+ */
+
+.po-num     { font-variant-numeric: tabular-nums; }
+
+.po-chart-empty { padding: 56px 16px; text-align: center; border: 1px dashed var(--po-pearl-line, #efe6e8); border-radius: 14px; }
+
+.po-chart-empty p { margin: 0; font-size: 0.9375rem; color: var(--po-ink-2, #44536a); }
+
+.po-chart-empty-hint { margin-top: 6px !important; font-size: 14px !important; color: var(--po-ink-3, #5e6d80) !important; }
+
+.po-legend { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 16px; }
+
+.po-legend-item { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; color: var(--po-ink-2, #44536a); }
+
+.po-legend-dot { width: 10px; height: 10px; border-radius: 999px; }
+
+.po-legend-count { color: var(--po-ink-3, #5e6d80); font-variant-numeric: tabular-nums; }
+
+.po-tooltip { background: var(--po-surface, #ffffff); border: 1px solid var(--po-pearl-line, #efe6e8); border-radius: 10px; padding: 11px 13px; box-shadow: 0 10px 30px rgba(21, 32, 47, 0.12); }
+
+.po-tooltip-title { margin: 0 0 3px; font-size: 0.9375rem; font-weight: 600; }
+
+.po-tooltip-value { margin: 0; font-size: 0.9375rem; color: var(--po-ink-2, #44536a); }
+
+.po-tooltip-meta { margin: 3px 0 0; font-size: 14px; color: var(--po-ink-3, #5e6d80); }
+
+.po-tooltip-note { margin: 7px 0 0; font-size: 14px; color: var(--po-ink-3, #5e6d80); max-width: 220px; }
+
+.po-disclosure { margin-top: 16px; }
+
+.po-disclosure summary { cursor: pointer; font-size: 15px; color: var(--po-ink-2, #44536a); padding: 11px 2px; min-height: 44px; }
+
+.po-disclosure summary:hover { color: var(--po-ink, #15202f); }
+
+.po-table-scroll { overflow-x: auto; }
+
+.po-table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.5; margin-top: 8px; }
+
+.po-table th, .po-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--po-pearl-line-soft, #f6eef0); white-space: nowrap; }
+
+.po-table thead th { color: var(--po-ink, #15202f); font-weight: 600; }
+
+.po-table tbody th { font-weight: 500; color: var(--po-ink-2, #44536a); }
+
+/* px, not rem: `:root` is 14px, so rem here renders 12.5% under its nominal
+   size. See the note in lab-trends.css. */
+
+/* What the plot shows, and what it could not distinguish. Stated under the
+   chart because a caption a reader has to infer is not a caption. */
+.po-chart-note {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--po-ink-2, #44536a);
+  max-width: 76ch;
+}
+
+.po-chart-note--integrity {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--po-ink-3, #5e6d80);
+}
+
+.po-table caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--po-ink-3, #5e6d80);
+  padding-bottom: 8px;
+}
+
+.po-table-scroll:focus-visible {
+  outline: 2px solid var(--focus-ring, #0e7490);
+  outline-offset: 2px;
+}
+
+.po-table-hint {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--po-ink-3, #5e6d80);
+}

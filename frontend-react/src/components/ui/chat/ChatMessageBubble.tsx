@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { clsx } from "clsx";
 import { BookOpen, CheckCircle2, ShieldCheck, Sparkles, Undo2, User, X } from "lucide-react";
 
@@ -13,18 +13,57 @@ const CHIP_STYLE: Record<ChipTone, { bg: string; fg: string; border: string }> =
   info: { bg: "#f0f7ff", fg: "#24527a", border: "#bfd8ee" },
 };
 
+/** Longest delay `setTimeout` accepts; preview lifetimes are minutes, far below it. */
+const MAX_TIMER_MS = 2 ** 31 - 1;
+
+/**
+ * The preview's expiry in ms, from `expires_at_epoch` (seconds, as the backend
+ * writes it). Absent, non-numeric or non-positive values yield null: the card is
+ * then left to the server, which is the only authority on expiry.
+ */
+function previewExpiryMs(action: SavedAction): number | null {
+  const v = action.expires_at_epoch;
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v * 1000 : null;
+}
+
+/**
+ * True once the known expiry has passed on this device's clock. This only stops
+ * the card offering buttons that would be refused; a wrong clock can hide a
+ * card that is still valid or leave an expired one showing, so the server
+ * enforces expiry regardless.
+ */
+function usePreviewExpired(expiresAtMs: number | null): boolean {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (expiresAtMs === null) return;
+    const wait = expiresAtMs - Date.now();
+    if (wait <= 0) return;
+    const id = window.setTimeout(() => setNow(Date.now()), Math.min(wait + 50, MAX_TIMER_MS));
+    return () => window.clearTimeout(id);
+  }, [expiresAtMs]);
+  return expiresAtMs !== null && now >= expiresAtMs;
+}
+
 function ActionChip({
   action,
   canConfirm,
+  confirmationPaused,
   onQuickReply,
   onUndoAction,
 }: {
   action: SavedAction;
   canConfirm?: boolean;
+  /**
+   * "hold": the outcome of an earlier request is unknown, so nothing may be
+   * confirmed or cancelled. "quarantine": this card was on screen when that
+   * happened and may already have been acted on; it never offers buttons again.
+   */
+  confirmationPaused?: "hold" | "quarantine";
   onQuickReply?: (message: string) => void;
   onUndoAction?: (auditId: number) => Promise<void>;
 }) {
   const [undoState, setUndoState] = useState<"idle" | "working" | "done">("idle");
+  const expired = usePreviewExpired(action.type === "pending_record_confirmation" ? previewExpiryMs(action) : null);
   const { label, Icon, tone } = savedActionDescriptor(action);
   const style = CHIP_STYLE[tone];
   if (action.type === "pending_record_confirmation") {
@@ -35,8 +74,24 @@ function ActionChip({
           Review before saving
         </div>
         <p>{String(action.preview ?? "Review the extracted record values.")}</p>
-        <span>Nothing is saved until you confirm.</span>
-        {canConfirm && onQuickReply && (
+        {!expired && <span>Nothing is saved until you confirm.</span>}
+        {confirmationPaused === "hold" && (
+          <span className="chat-confirmation-paused">
+            Confirm and Cancel are paused: an earlier request may still be finishing, and answering this
+            card now could submit the same action twice.
+          </span>
+        )}
+        {confirmationPaused === "quarantine" && (
+          <span className="chat-confirmation-paused">
+            This preview may already have been acted on. Check your records, and ask again to create a fresh preview.
+          </span>
+        )}
+        {expired && !confirmationPaused && (
+          <span className="chat-confirmation-paused">
+            This preview has expired. Ask again to create a fresh preview.
+          </span>
+        )}
+        {canConfirm && !confirmationPaused && !expired && onQuickReply && (
           <div className="chat-confirmation-actions">
             <button type="button" onClick={() => onQuickReply("Confirm save")}>
               <CheckCircle2 size={13} /> Confirm save
@@ -87,6 +142,7 @@ function ActionChip({
 interface ChatMessageBubbleProps {
   message: NormalisedMessage;
   isLatestAssistant?: boolean;
+  confirmationPaused?: "hold" | "quarantine";
   registerNode?: (node: HTMLDivElement | null) => void;
   onQuickReply?: (message: string) => void;
   onUndoAction?: (auditId: number) => Promise<void>;
@@ -95,6 +151,7 @@ interface ChatMessageBubbleProps {
 export function ChatMessageBubble({
   message,
   isLatestAssistant,
+  confirmationPaused,
   registerNode,
   onQuickReply,
   onUndoAction,
@@ -125,15 +182,21 @@ export function ChatMessageBubble({
       </span>
 
       <div className={clsx("chat-message-body flex flex-col gap-1.5 min-w-0", isUser ? "items-end" : "items-start")}>
-        <div className="text-[0.72rem] font-medium" style={{ color: "var(--text-faint)" }}>
+        {/* Size and the user-bubble colour read CSS variables whose fallbacks
+            are the original values, so every surface that does not set them
+            renders exactly as before. The patient chat sets them (see
+            `.chat-workspace` in styles/pearl.css) to fix a 3.52:1 contrast
+            failure and sub-13px text. */}
+        <div className="font-medium" style={{ color: "var(--text-faint)", fontSize: "var(--chat-speaker-font, 0.72rem)" }}>
           {isUser ? "You" : "NLCare assistant"}
         </div>
         <div
-          className={clsx("chat-message-bubble text-[0.92rem]", isUser ? "is-user" : "is-assistant")}
+          className={clsx("chat-message-bubble", isUser ? "is-user" : "is-assistant")}
           style={{
             padding: "10px 14px",
             borderRadius: isUser ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-            background: isUser ? "var(--rose)" : "var(--surface)",
+            fontSize: "var(--chat-bubble-font, 0.92rem)",
+            background: isUser ? "var(--chat-user-bubble, var(--rose))" : "var(--surface)",
             color: isUser ? "#fff" : "var(--text)",
             border: isUser ? "none" : "1px solid var(--border)",
             boxShadow: isUser
@@ -155,6 +218,7 @@ export function ChatMessageBubble({
                 key={index}
                 action={action}
                 canConfirm={isLatestAssistant}
+                confirmationPaused={confirmationPaused}
                 onQuickReply={onQuickReply}
                 onUndoAction={onUndoAction}
               />

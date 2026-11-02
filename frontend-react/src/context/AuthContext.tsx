@@ -2,12 +2,17 @@ import React, { useState, useCallback } from "react";
 import type { Role } from "../types/api";
 import { AuthContext, TOKEN_KEYS, loadSession } from "./authContextCore";
 import type { AuthState } from "./authContextCore";
+import { clearAllDrafts } from "../lib/draftStore";
+import { clearOutcomeHold } from "../pages/patient/useChatOutcomeHold";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>(loadSession);
 
   const setSession = useCallback(
     (token: string, role: Role, patientId: string | null) => {
+      // A new sign-in, or a different patient, must never inherit unsaved drafts.
+      clearAllDrafts();
+      clearOutcomeHold();
       Object.values(TOKEN_KEYS).forEach((k) => sessionStorage.removeItem(k));
       sessionStorage.setItem(TOKEN_KEYS[role], token);
       if (patientId) sessionStorage.setItem("currentPatientId", patientId);
@@ -17,6 +22,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const clearSession = useCallback(() => {
+    clearAllDrafts();
+    clearOutcomeHold();
     Object.values(TOKEN_KEYS).forEach((k) => sessionStorage.removeItem(k));
     sessionStorage.removeItem("currentPatientId");
     setState({ token: null, role: null, patientId: null });

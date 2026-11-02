@@ -32,7 +32,7 @@ export function RecentAiExplanationsCard({ messages }: Props) {
       action={
         <button
           type="button"
-          className="text-[0.75rem] font-medium"
+          className="inline-flex min-h-[24px] items-center px-1 text-[0.8125rem] font-medium"
           style={{ color: "var(--accent)" }}
           onClick={() => navigate("/patient/chat")}
         >

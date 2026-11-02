@@ -110,7 +110,7 @@ export function ImagingForm({ open, onClose, onSaved }: ImagingFormProps) {
       open={open}
       onClose={handleClose}
       title="Save imaging report"
-      description="Record an MRI, CT, ultrasound, or mammogram report so your care team can review the text."
+      description="Record an MRI, CT, ultrasound, or mammogram report. This view does not show whether your care team has seen it."
       size="lg"
       dismissable={!submitting}
       footer={

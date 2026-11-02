@@ -139,7 +139,7 @@ export function SymptomForm({ open, onClose, onSaved }: SymptomFormProps) {
       open={open}
       onClose={handleClose}
       title="Log a symptom"
-      description="Track how you are feeling so your care team can review trends."
+      description="Record how you are feeling. This view does not show whether your care team has seen your entries."
       size="md"
       dismissable={!submitting}
       footer={
@@ -245,8 +245,8 @@ export function SymptomForm({ open, onClose, onSaved }: SymptomFormProps) {
           tone="warning"
           checked={state.urgentFlag}
           onChange={(v) => setState((s) => ({ ...s, urgentFlag: v }))}
-          label="Mark as urgent for clinician review"
-          description="Tags this entry for the review queue. For severe or sudden symptoms (chest pain, trouble breathing, heavy bleeding, fainting), contact your oncology team or local emergency services right away — do not rely on this form."
+          label="Mark this entry as urgent"
+          description="Adds an urgent mark to this entry in your record. It does not contact anyone, and this page does not show whether anyone sees it. For severe or sudden symptoms (chest pain, trouble breathing, heavy bleeding, fainting), contact your oncology team or local emergency services right away — do not rely on this form."
         />
 
         <SafetyBanner tone="info" compact>

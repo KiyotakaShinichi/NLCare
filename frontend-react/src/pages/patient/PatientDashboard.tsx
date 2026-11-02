@@ -1,26 +1,20 @@
-﻿import { LayoutDashboard, FlaskConical, Activity, Clock, MessageSquare, Dna, ShieldCheck } from "lucide-react";
+﻿import {
+  LayoutDashboard, FlaskConical, Activity, Clock, MessageSquare, Dna } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { AppShell } from "../../components/layout/AppShell";
 import { useApi } from "../../hooks/useApi";
 import { useReportEnrichment } from "../../hooks/useReportEnrichment";
 import { readFileAsBase64 } from "../../lib/fileEncoding";
+import { useChatOutcomeHold } from "./useChatOutcomeHold";
 import { getMyReportCore, sendMyChat, sendMyChatStream, getMyChatHistory, undoMyConfirmedRecordWrite, uploadFile } from "../../api/client";
 import { ErrorPane } from "../../components/ui/Spinner";
 import { SkeletonDashboard } from "../../components/ui/Skeleton";
 import { PatientBanner } from "./PatientBanner";
-import { PatientKpiStrip } from "./PatientKpiStrip";
-import { KeySignalsCard } from "./KeySignalsCard";
-import { ReviewWithCareTeamCard } from "./ReviewWithCareTeamCard";
-import { RecentAiExplanationsCard } from "./RecentAiExplanationsCard";
-import { LabsPanel } from "./LabsPanel";
-import { TimelinePanel } from "./TimelinePanel";
-import { SymptomsTable } from "./SymptomsTable";
-import { ModelSignalPanel } from "./ModelSignalPanel";
-import { EvidenceAwarePredictionCard } from "./EvidenceAwarePredictionCard";
-import { HybridPredictionCard } from "./HybridPredictionCard";
-import { GeneticCounselingPanel } from "./GeneticCounselingPanel";
-import { MedLogPanel } from "./MedLogPanel";
+import { PatientOverview } from "./PatientOverview";
+import { OverviewHeader } from "./OverviewHeader";
+import { OVERVIEW_RANGES, rangeCutoff, type OverviewRangeId } from "./overviewRange";
+import "../../styles/pearl.css";
 import { touchesPatientReport } from "./savedActions";
 import { ChatPanel } from "../../components/ui/ChatPanel";
 import { describeSavedAction } from "../../components/ui/chat/savedActionPresentation";
@@ -35,6 +29,32 @@ import { ComposerToolButton, type ToolKey } from "./tools/ComposerToolButton";
 import { useAuth } from "../../hooks/useAuth";
 import { ClinicalBoundaryBanner } from "../../components/ui/ClinicalBoundaryBanner";
 import type { ChatMessage, SavedAction } from "../../types/api";
+import { PATIENT_OVERVIEW_52, PATIENT_OVERVIEW_C } from "../../lib/featureFlags";
+import { MONITORING_BOUNDARY, OWN_RECORD_NOTE } from "../../lib/patientLanguage";
+import { useAllowedQueryParam } from "../../hooks/useQueryParam";
+import { NAV_C } from "./overviewC/nav";
+
+/*
+ * Concept 5.2 Overview, behind PATIENT_OVERVIEW_52 (off by default).
+ *
+ * Lazy so that with the flag off neither the module nor its stylesheet is ever
+ * requested: the off state is the existing dashboard, byte for byte. Only the
+ * Overview presentation is swapped - the shell, tab bar, data fetches, tool
+ * forms, chat, upload and undo below are shared by both states.
+ */
+const PatientOverview52 = lazy(() => import("./PatientOverview52"));
+const Overview52Header = lazy(() =>
+  import("./PatientOverview52").then((m) => ({ default: m.Overview52Header })),
+);
+
+/*
+ * Design C Overview, behind PATIENT_OVERVIEW_C (off by default) and lazy for the
+ * same reason. Its stylesheet also dresses the shell, so it loads for both tabs.
+ */
+const PatientOverviewC = lazy(() => import("./overviewC/PatientOverviewC"));
+if (PATIENT_OVERVIEW_C) void import("../../styles/patient-overview-c.css");
+const USE_OVERVIEW_52 = PATIENT_OVERVIEW_52 && !PATIENT_OVERVIEW_C;
+const RANGE_IDS = OVERVIEW_RANGES.map((r) => r.id);
 
 const NAV = [
   { to: "/patient",          label: "Overview",  icon: LayoutDashboard },
@@ -84,11 +104,26 @@ export default function PatientDashboard() {
   }, [refetchCoreReport, resetEnrichment]);
 
   const chatMessages = chatData?.messages ?? report?.chat_history ?? [];
+
+  // After a chat turn that could have confirmed or cancelled a record preview
+  // ends with an unknown outcome, the chat is held until the patient has looked
+  // at refreshed records and says so. A changed history is never evidence. See
+  // useChatOutcomeHold for what this contains and what it cannot.
+  const onOutcomeRefreshed = useCallback(() => {
+    refetchChat();
+    refetchReport();
+  }, [refetchChat, refetchReport]);
+  const { hold: confirmationHold, quarantined, begin: beginOutcomeHold } = useChatOutcomeHold({
+    loadHistory: getMyChatHistory,
+    onRefreshed: onOutcomeRefreshed,
+  });
   const chatKey = buildChatKey(patientId ?? "patient", chatMessages);
 
-  // Tool tray modal state. One key at a time â€” opening a new tool closes
+  // Tool tray modal state. One key at a time — opening a new tool closes
   // any other open form so the user never sees two modals stacked.
   const [activeTool, setActiveTool] = useState<ToolKey | null>(null);
+  const rangeFromUrl = useAllowedQueryParam<OverviewRangeId>("range", "6m", RANGE_IDS);
+  const [overviewRange, setOverviewRange] = useState<OverviewRangeId>(PATIENT_OVERVIEW_C ? rangeFromUrl : "6m");
   const closeTool = () => setActiveTool(null);
 
   async function handleToolSelect(key: ToolKey, file?: File) {
@@ -100,7 +135,7 @@ export default function PatientDashboard() {
       toast.push({
         tone: "info",
         title: "Ask away",
-        description: "Type your question in the chat below â€” the assistant will cite sources where it can.",
+        description: "Type your question in the chat below — the assistant will cite sources where it can.",
       });
       return;
     }
@@ -185,22 +220,68 @@ export default function PatientDashboard() {
     return () => window.clearTimeout(timer);
   }, [location.pathname, location.hash, tab]);
 
+  // Range-filtered views for the overview. Filtering here rather than inside
+  // each panel keeps one window definition for the whole page.
+  const overviewCutoff = useMemo(
+    () => rangeCutoff(report, overviewRange), [report, overviewRange],
+  );
+  const rangedSymptoms = useMemo(
+    () => (report?.symptoms ?? []).filter((s) => new Date(s.date).getTime() >= overviewCutoff),
+    [report, overviewCutoff],
+  );
+  const rangedLabHistory = useMemo(
+    () => (report?.lab_history ?? []).filter((p) => new Date(p.date).getTime() >= overviewCutoff),
+    [report, overviewCutoff],
+  );
+  const rangedReport = useMemo(
+    () => (report ? { ...report, lab_history: rangedLabHistory } : null),
+    [report, rangedLabHistory],
+  );
+  const latestLabDate = rangedLabHistory.length
+    ? rangedLabHistory[rangedLabHistory.length - 1].date
+    : null;
+
   return (
     <AppShell
-      navItems={NAV}
-      title="Patient portal"
+      navItems={PATIENT_OVERVIEW_C ? NAV_C : NAV}
+      boundaryNote={PATIENT_OVERVIEW_C ? MONITORING_BOUNDARY : undefined}
+      calmNav={PATIENT_OVERVIEW_C}
+      title={PATIENT_OVERVIEW_C ? "NLCare" : "Patient portal"}
+      // The overview supplies its own page heading ("Your monitoring record").
+      titleAs={tab === "overview" && status === "success" && report ? "p" : "h1"}
       subtitle={report?.patient_name ?? patientId ?? ""}
     >
-      <div className="dashboard-content patient-boundary-strip">
-        <ClinicalBoundaryBanner />
-      </div>
+      {/* Design C carries this in the page's opening section instead. */}
+      {!(PATIENT_OVERVIEW_C && tab === "overview" && status === "success") && (
+        <div className="dashboard-content patient-boundary-strip">
+          <ClinicalBoundaryBanner />
+        </div>
+      )}
       {status === "loading" && <SkeletonDashboard label="Loading your records..." />}
       {status === "error"   && <ErrorPane message={error ?? "Failed to load"} onRetry={refetchReport} />}
       {status === "success" && report && (
         <div className="dashboard-page">
-          <PatientBanner report={report} compact={tab === "chat"} />
+          {tab === "chat"
+            ? PATIENT_OVERVIEW_C ? <p className="pc-chat-note">{OWN_RECORD_NOTE}</p> : <PatientBanner report={report} compact />
+            : PATIENT_OVERVIEW_C
+              ? null
+            : USE_OVERVIEW_52
+              ? <div className="dashboard-content">
+                  <Suspense fallback={null}>
+                    <Overview52Header
+                      report={report}
+                      patientId={patientId ?? null}
+                      rangedSymptoms={rangedSymptoms}
+                      rangedLabHistory={rangedLabHistory}
+                      latestLabDate={latestLabDate}
+                    />
+                  </Suspense>
+                </div>
+              : <div className="po-surface-ground"><div className="po-page po-page--header">
+                  <OverviewHeader report={report} patientId={patientId ?? null} />
+                </div></div>}
 
-          <div className="dashboard-tabbar">
+          {!PATIENT_OVERVIEW_C && <div className="dashboard-tabbar">
             <div className="dashboard-tabbar-inner">
               {tabs.map(({ id, label }) => (
                 <button
@@ -212,115 +293,59 @@ export default function PatientDashboard() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
-          {tab === "overview" && (
-            <div className="dashboard-content dashboard-grid">
-              {/* Row 1 â€” KPI strip across the top: at-a-glance numbers that the
-                  rest of the dashboard then breaks down.  Mirrors a standard
-                  analytics-dashboard top-row pattern so the most important
-                  signals are above the fold without scrolling. */}
-              <div className="dashboard-grid-full" data-section="kpi">
-                <PatientKpiStrip report={report} />
-                {enrichmentStatus === "loading" && (
-                  <p className="patient-progressive-load" role="status">
-                    Patient records are ready. Loading synthetic engineering details separately...
-                  </p>
-                )}
-                {enrichmentStatus === "error" && (
-                  <p className="patient-progressive-load is-warning" role="status">
-                    Patient records are available, but synthetic engineering details could not be loaded.
-                  </p>
-                )}
-              </div>
+          {tab === "overview" && report && PATIENT_OVERVIEW_C && (
+            <Suspense fallback={<SkeletonDashboard label="Loading your records..." />}>
+              <PatientOverviewC
+                report={report}
+                patientId={patientId ?? null}
+                rangedSymptoms={rangedSymptoms}
+                rangedLabHistory={rangedLabHistory}
+                latestLabDate={latestLabDate}
+                range={overviewRange}
+                onRangeChange={setOverviewRange}
+                reportFetchedAt={reportFetchedAt}
+                enrichmentStatus={enrichmentStatus}
+                chatMessages={chatMessages}
+                onSaved={refetchReport}
+              />
+            </Suspense>
+          )}
 
-              {/* Row 2 â€” Hybrid monitoring signal (detail) sits beside the
-                  Lab trend chart so the at-a-glance KPI summary AND the
-                  detailed signal slots are both in the first viewport. */}
-              <div className="col-7" data-section="labs">
-                <LabsPanel report={report} lastFetchedAt={reportFetchedAt} />
-              </div>
-              <div className="col-5" data-section="evidence">
-                {report.hybrid_prediction
-                  ? <HybridPredictionCard hybrid={report.hybrid_prediction} />
-                  : <EvidenceAwarePredictionCard prediction={report.evidence_aware_prediction} />
-                }
-              </div>
-
-              {/* Row 3 â€” Today's summary Â· Review queue (merged with Next review)
-                  Â· Model signal.  Review queue is now ONE strong card so the
-                  WBC/platelet warning doesn't show twice on the dashboard. */}
-              <div className="col-4" data-section="summary">
-                <KeySignalsCard
-                  summary={report.ai_summary ?? null}
+          {tab === "overview" && report && USE_OVERVIEW_52 && (
+            <div className="dashboard-content">
+              <Suspense fallback={<SkeletonDashboard label="Loading your records..." />}>
+                <PatientOverview52
                   report={report}
-                  lastFetchedAt={reportFetchedAt}
-                />
-              </div>
-              <div className="col-4" data-section="review">
-                <ReviewWithCareTeamCard summary={report.ai_summary ?? null} report={report} />
-              </div>
-              <div className="col-4" data-section="signals">
-                <ModelSignalPanel report={report} />
-              </div>
-
-              {/* Row 4 â€” Symptoms Â· Timeline Â· Recent AI explanations.  All
-                  three are compact peer cards; none of them is allowed to
-                  stretch into a tall scroll monolith on its own. */}
-              <div className="col-4" data-section="symptoms">
-                <SymptomsTable symptoms={report.symptoms ?? []} compact lastFetchedAt={reportFetchedAt} />
-              </div>
-              <div className="col-4" data-section="timeline">
-                <TimelinePanel events={report.timeline ?? []} lastFetchedAt={reportFetchedAt} />
-              </div>
-              <div className="col-4" data-section="ai-explanations">
-                <RecentAiExplanationsCard messages={chatMessages} />
-              </div>
-
-              {/* Row 5 â€” Family & Genetics readiness summary.  The detailed
-                  forms (family history, genetic test, biomarker, tumor
-                  marker) live behind the GeneticCounselingPanel's own
-                  collapsible body so the overview never opens as a giant
-                  inline form page. */}
-              <div className="dashboard-grid-full" data-section="genetics">
-                <GeneticCounselingPanel
-                  readiness={report.genetic_counseling_readiness ?? null}
+                  rangedReport={rangedReport}
+                  rangedSymptoms={rangedSymptoms}
+                  rangedLabHistory={rangedLabHistory}
+                  latestLabDate={latestLabDate}
+                  range={overviewRange}
+                  onRangeChange={setOverviewRange}
+                  reportFetchedAt={reportFetchedAt}
+                  enrichmentStatus={enrichmentStatus}
                   onSaved={refetchReport}
-                  defaultCollapsed
                 />
-              </div>
-              {/* Row 6 â€” medication log full-width (compact table). */}
-              <div className="dashboard-grid-full" data-section="medications">
-                <MedLogPanel meds={report.medication_logs ?? []} />
-              </div>
-
-              {/* Page-level safety footnote â€” reinforces the topbar pill so the
-                  PoC boundary is visible after the user scrolls the dashboard. */}
-              <div className="dashboard-grid-full">
-                <p
-                  className="inline-flex items-start gap-2 text-[0.74rem] leading-relaxed"
-                  style={{
-                    color: "var(--text-faint)",
-                    margin: "8px 0 0",
-                    padding: "10px 12px",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    background: "var(--surface2)",
-                  }}
-                >
-                  <ShieldCheck
-                    size={13}
-                    style={{ color: "var(--rose-deep)", flexShrink: 0, marginTop: 1 }}
-                    aria-hidden="true"
-                  />
-                  <span>
-                    <strong style={{ color: "var(--text-dim)" }}>Proof-of-concept</strong> â€” this dashboard summarises
-                    what you have logged and what the AI noticed. It does not diagnose, recommend treatment, or
-                    replace clinician judgement. If something feels wrong, contact your care team.
-                  </span>
-                </p>
-              </div>
+              </Suspense>
             </div>
+          )}
+
+          {tab === "overview" && report && !PATIENT_OVERVIEW_52 && !PATIENT_OVERVIEW_C && (
+            <PatientOverview
+              report={report}
+              rangedReport={rangedReport}
+              rangedSymptoms={rangedSymptoms}
+              rangedLabHistory={rangedLabHistory}
+              latestLabDate={latestLabDate}
+              range={overviewRange}
+              onRangeChange={setOverviewRange}
+              reportFetchedAt={reportFetchedAt}
+              enrichmentStatus={enrichmentStatus}
+              chatMessages={chatMessages}
+              onSaved={refetchReport}
+            />
           )}
 
           {tab === "chat" && (
@@ -333,6 +358,10 @@ export default function PatientDashboard() {
                 <ChatPanel
                   key={chatKey}
                   messages={chatMessages}
+                  scrollRegionLabel="Conversation with the support assistant"
+                  confirmationHold={confirmationHold}
+                  quarantinedMessageIds={quarantined}
+                  onOutcomeUnknown={({ pendingMessageIds }) => beginOutcomeHold(pendingMessageIds)}
                   composerLeading={<ComposerToolButton onSelect={handleToolSelect} />}
                   onSend={async (text) => {
                     const res = await sendMyChat(text);
@@ -366,7 +395,7 @@ export default function PatientDashboard() {
                         title: tone === "warning" ? label : `${label}.`,
                         description:
                           tone === "warning"
-                            ? "Flagged for clinician review."
+                            ? "Noted in the saved text. Worth raising with your care team."
                             : "Patient record refreshed.",
                       });
                     }
@@ -389,8 +418,8 @@ export default function PatientDashboard() {
           refetchReport();
           toast.push({
             tone: urgent_flag ? "warning" : "success",
-            title: urgent_flag ? "Symptom saved and flagged for review" : "Symptom saved",
-            description: `${symptom} Â· severity ${severity}/10`,
+            title: urgent_flag ? "Symptom saved with an urgent mark" : "Symptom saved",
+            description: `${symptom} · severity ${severity}/10`,
           });
         }}
       />
@@ -401,7 +430,7 @@ export default function PatientDashboard() {
           refetchReport();
           toast.push({
             tone: hasAbnormal ? "warning" : "success",
-            title: hasAbnormal ? "CBC saved â€” values flagged for review" : "CBC saved",
+            title: hasAbnormal ? "CBC saved. Some values are outside the usual range." : "CBC saved",
             description: "Lab card updated",
           });
         }}
@@ -447,7 +476,7 @@ export default function PatientDashboard() {
 }
 
 /**
- * Stable chat key â€” keyed only on the patient id, NOT on the message list.
+ * Stable chat key — keyed only on the patient id, NOT on the message list.
  *
  * The previous implementation embedded `messages.length` and the last
  * message's content, which forced ChatPanel to remount every time a message
@@ -461,7 +490,7 @@ export default function PatientDashboard() {
  * we never need to remount the panel just because the message list changed.
  */
 function buildChatKey(scope: string, _messages: ChatMessage[]) {
-  void _messages; // intentionally unused â€” keyed only on patient/session scope
+  void _messages; // intentionally unused — keyed only on patient/session scope
   return `chat:${scope}`;
 }
 

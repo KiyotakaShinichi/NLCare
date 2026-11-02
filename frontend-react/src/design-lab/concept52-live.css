@@ -1,0 +1,125 @@
+/* The end of concept52.css, split off to keep each file under the 500-line limit.
+ * Import it straight after concept52.css: the responsive rules below must keep
+ * following the rules they override. */
+
+/* ── Live integration (`.c52-live`) ─────────────────────────────────────
+   Rules used only when Concept 5.2 renders inside the real patient dashboard
+   behind PATIENT_OVERVIEW_52. They are inert on the preview routes, which
+   never carry `.c52-live`. */
+
+/* The dashboard already supplies gutters through `.dashboard-content`. */
+.c52-live .pr-header { padding-bottom: var(--pr-space-2); }
+
+/* Carried-over panels keep their own card styling; this only spaces them. */
+.c52-live .c52-panel { min-width: 0; }
+
+/* Readable text inside the panels carried over from the existing Overview.
+ *
+ * Measured with the flag on: 61 text nodes inside the Overview sat below the
+ * 13px floor (down to 9.2px) - all in panels brought across for parity
+ * (timeline, symptoms table, medication log, genetics). They size themselves
+ * with Tailwind `text-[0.xrem]` utilities and `index.css` classes, which beat
+ * the scope's inherited 16px. These rules out-specify them inside
+ * `.c52-live` only; the panels render unchanged everywhere else, including
+ * the flag-off Overview. Small labels go to 14px, titles to 16px. */
+.c52-live [data-section] [class*="text-[0."],
+.c52-live [data-section] [class*="text-[11px]"],
+.c52-live [data-section] [class*="text-[12px]"],
+.c52-live [data-section] .text-xs,
+.c52-live [data-section] .text-sm,
+.c52-live [data-section] th,
+.c52-live .timeline-date-primary,
+.c52-live .timeline-date-count,
+.c52-live .timeline-date-secondary,
+.c52-live .symptom-date { font-size: 14px; line-height: 1.5; }
+.c52-live .timeline-event-summary { font-size: 15px; line-height: 1.55; }
+.c52-live .timeline-event-title,
+.c52-live .symptom-name,
+.c52-live .symptom-summary-name,
+.c52-live [data-section] td { font-size: 16px; line-height: 1.5; }
+.c52-live .section-meta,
+.c52-live .symptom-summary-eyebrow,
+.c52-live .symptom-summary-meta,
+.c52-live .symptom-summary-bar-label,
+.c52-live .symptom-view-all,
+.c52-live .timeline-view-all { font-size: 14px; }
+
+/* Three carried-over sizes are inline styles (SymptomsTable's severity figure
+   and meta, MedLogPanel's table headers), which no selector can outrank. They
+   are matched by their inline sub-1rem size and raised, inside this scope
+   only - the same reason the chart-axis override above needs !important. */
+.c52-live [data-section] [style*="font-size: 0."] { font-size: 14px !important; }
+
+/* A clinician-attributed note. Prominent - it is shown first, with a rose
+   rule and a serif heading - but deliberately not styled as a system alarm,
+   because NLCare did not raise it and must not appear to have assessed it. */
+.c52 .c52-review {
+  background: var(--pr-surface-sheet);
+  border: 1px solid var(--pr-border-hairline);
+  border-left: 4px solid var(--pr-accent);
+  border-radius: var(--pr-radius-panel);
+  padding: var(--pr-space-4) var(--pr-space-5);
+  box-shadow: var(--c52-shadow-card);
+}
+.c52 .c52-review-title {
+  margin: 0 0 var(--pr-space-3);
+  font-family: var(--pr-font-display);
+  font-size: var(--pr-text-xl);
+  line-height: 1.25;
+  color: var(--pr-text-primary);
+}
+.c52 .c52-review-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pr-space-4); }
+.c52 .c52-review-quote {
+  margin: 0;
+  font-family: var(--pr-font-display);
+  font-size: var(--pr-text-xl);
+  line-height: 1.4;
+  color: var(--pr-text-primary);
+}
+.c52 .c52-review-quote::before { content: "\201C"; }
+.c52 .c52-review-quote::after { content: "\201D"; }
+.c52 .c52-review-meta,
+.c52 .c52-review-foot {
+  margin: var(--pr-space-2) 0 0;
+  font-size: var(--pr-text-sm);
+  line-height: 1.6;
+  color: var(--pr-text-secondary);
+  max-width: 76ch;
+}
+.c52 .c52-review-foot { margin-top: var(--pr-space-4); padding-top: var(--pr-space-3); border-top: 1px solid var(--pr-border-soft); }
+
+/* ── Responsive ─────────────────────────────────────────────────────────
+   The rail must never obstruct content. Below 1180px it stops being sticky,
+   stops scrolling independently, and reflows to a row of facts above the
+   record - carrying 5.1B's tablet composition, including keeping the three
+   CBC panels across rather than collapsing them into one tall column. */
+
+@media (max-width: 1180px) {
+  .c52 .c52-grid { grid-template-columns: minmax(0, 1fr); }
+  .c52 .c52-aside { position: static; max-height: none; overflow: visible; }
+  .c52 .c52-status dl { grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); }
+  .c52 .c52-status dl > div + div { border-top: 0; padding-top: 0; }
+}
+@media (min-width: 820px) and (max-width: 1180px) {
+  .c52 .lab-trend-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--pr-space-3); }
+}
+@media (max-width: 760px) {
+  .c52 { --pr-space-5: 24px; --pr-space-6: 34px; }
+  .c52 .c52-standfirst { font-size: var(--pr-text-lg); max-width: none; }
+  .c52 .pr-notice { padding-left: var(--pr-space-3); }
+  .c52 .pr-figure { padding: var(--pr-space-3); }
+  .c52 .pr-sheet { padding: var(--pr-space-3); }
+}
+@media (max-width: 380px) {
+  .c52 .c52-notes > summary { padding: var(--pr-space-3); }
+  .c52 .c52-notes-body { padding: var(--pr-space-3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .c52 *, .c52 *::before, .c52 *::after {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

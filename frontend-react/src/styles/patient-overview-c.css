@@ -1,0 +1,308 @@
+/* Design C: one calm reading column in Pearl Rose, matching the approved mockup.
+ * Loaded only when PATIENT_OVERVIEW_C is on, and scoped so nothing here reaches the
+ * other Overviews.
+ *
+ * Sizes are the mockup's, in px, because :root is fixed at 14px, which makes this
+ * file's rem values misleading. Browser zoom still scales them.
+ *
+ * Sections are flat: a heading with space around it. Only the things in a section
+ * (a lab, a review item, a medication) are cards. Each !important beats an inline
+ * style or size utility in a shared component.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap");
+
+/* ── Top bar ───────────────────────────────────────────────── */
+.app-shell--calm { background: #fdfaf9; }
+.app-shell--calm .app-frame { margin-left: 0; min-width: 0; flex: 1; }
+/* Any transition here, even the reduced-motion rule's tiny one, leaves the links
+   hidden for an instant, and a hidden link cannot take focus when the menu opens. */
+.app-shell--calm .app-sidebar, .app-shell--calm .app-sidebar * { transition: none !important; }
+.app-shell--calm .app-sidebar {
+  position: fixed; inset: 0 auto 0 0; z-index: 40; width: 280px; max-width: 86vw;
+  box-shadow: 12px 0 32px rgba(21, 32, 47, 0.18);
+}
+/* The closed menu leaves the tab order too, not only the screen. */
+.app-shell--calm .app-sidebar.is-collapsed { visibility: hidden; transform: translateX(-100%); width: 280px; box-shadow: none; }
+.app-shell--calm .app-topbar {
+  flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px 12px;
+  min-height: 0; padding: 14px 24px; border-bottom: 1px solid #efe6e8; background: #fff;
+  font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.app-shell--calm .app-topbar > div:not(.app-topbar-actions) { display: contents; }
+.app-shell--calm .app-topbar .app-topbar-title, .app-shell--calm .app-topbar h1 { font-size: 18px; font-weight: 700; letter-spacing: 0; color: #15202f; }
+.app-top-nav { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 auto; }
+.app-top-nav a {
+  display: inline-grid; place-items: center; min-height: 44px; padding: 0 14px; border-radius: 12px;
+  color: #3f4e63; text-decoration: none; font-size: 16px;
+}
+.app-top-nav a:hover { background: #faf0f3; }
+.app-top-nav a[aria-current] { background: #faf0f3; color: #9d174d; font-weight: 700; }
+.app-shell--calm .app-topbar-actions { order: 1; margin: 0; }
+.app-shell--calm .app-safety-pill { padding: 4px 12px; border-color: #f1d9a8; background: #fdf4e7; color: #7c3d06 !important; font-size: 14px; font-weight: 700; }
+.app-shell--calm .app-safety-pill svg { display: none; }
+.app-topbar-menu {
+  order: 2; display: inline-grid; place-items: center; width: 44px; height: 44px; flex: none;
+  border: 0; border-radius: 12px; background: none; color: #15202f; cursor: pointer;
+}
+.app-topbar-menu:hover { background: #faf0f3; }
+.app-topbar-note { order: 3; flex: 1 1 100%; margin: 0; color: #3f4e63; font-size: 14px; line-height: 1.35; text-align: center; }
+.app-shell--calm .app-topbar :focus-visible, .app-bottom-nav a:focus-visible { outline: 2px solid #be185d; outline-offset: -2px; }
+.app-bottom-nav { display: none; }
+.app-menu-scrim { position: fixed; inset: 0; z-index: 39; background: rgba(21, 32, 47, 0.32); }
+.app-shell--calm .patient-boundary-strip { padding: 12px 16px 0; }
+/* This layout's bars and notes take less height than the 430px the shared rule allows for. */
+.app-shell--calm .chat-card-shell { height: clamp(320px, calc(100dvh - 300px), 720px); max-height: clamp(320px, calc(100dvh - 300px), 720px); }
+.pc-chat-note { margin: 0; padding: 8px 16px 0; color: #3f4e63; font-size: 15px; line-height: 1.4; text-align: center; }
+
+/* ── Column ────────────────────────────────────────────────── */
+.pc {
+  --po-ink: #15202f; --po-ink-2: #3f4e63; --po-ink-3: #5a687b;
+  font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 18px;
+  line-height: 1.65;
+  color: #15202f;
+  background: #fdfaf9;
+  flex: 1;
+}
+.pc button, .pc input, .pc select, .pc textarea { font-family: inherit; }
+.pc :focus-visible { outline: 2px solid #be185d; outline-offset: 2px; }
+.pc-column {
+  max-width: 760px;
+  box-sizing: content-box;
+  margin: 0 auto;
+  padding: 40px 24px 120px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 48px;
+}
+.pc [data-section] { min-width: 0; scroll-margin-top: 24px; }
+
+.pc-body { margin: 0; color: #3f4e63; max-width: 60ch; }
+.pc-meta { margin: 0; color: #5a687b; font-size: 16px; max-width: 60ch; }
+.pc-meta--under-heading { margin-top: -8px; }
+.pc-note { margin: 0; color: #5a687b; font-size: 16px; max-width: 60ch; }
+.pc-review-note { margin-top: 16px; }
+.pc-h3 { margin: 28px 0 8px; font-size: 20px; line-height: 1.3; font-weight: 700; }
+
+/* ── Opening section ───────────────────────────────────────── */
+.pc .po-header { flex-direction: column; align-items: stretch; gap: 0; }
+.pc .po-header-id { gap: 0; }
+.pc .po-eyebrow { margin: 0 0 6px; font-size: 16px; font-weight: 400; letter-spacing: 0; text-transform: none; color: #5a687b; }
+.pc .po-display { margin: 0; font-size: 40px; line-height: 1.15; font-weight: 700; letter-spacing: -0.015em; }
+.pc .po-facts { display: block; margin-top: 10px; max-width: 56ch; color: #3f4e63; }
+.pc .po-fact { display: inline; font-size: 18px; color: #3f4e63; }
+.pc .po-fact + .po-fact::before { content: " · "; margin: 0; color: inherit; }
+.pc-soft { margin-top: 20px; padding: 20px 24px; background: #faf0f3; border-radius: 20px; color: #3f4e63; font-size: 17px; }
+.pc-soft p { margin: 0; }
+.pc .clinical-strip { margin: 0; width: 100%; max-width: none; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.pc .clinical-strip-head { position: relative; display: block; width: 100%; min-height: 0; padding: 0 28px 0 0; background: none; border: 0; text-align: left; font: inherit; line-height: inherit; cursor: pointer; }
+.pc .clinical-strip-icon { display: none; }
+.pc .clinical-strip-eyebrow { display: inline; font-size: 17px; font-weight: 700; letter-spacing: 0; text-transform: none; color: #9d174d; }
+.pc .clinical-strip-eyebrow::after { content: ". "; }
+.pc .clinical-strip-text { display: inline; margin: 0; font-size: 17px; color: #3f4e63; white-space: normal; }
+.pc .clinical-strip-chevron { position: absolute; top: 6px; right: 0; color: #9d174d; }
+.pc .clinical-strip-detail { margin: 0 0 8px; padding: 0; font-size: 17px; line-height: 1.65; color: #3f4e63; }
+.pc .po-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.pc .po-cta, .pc .po-cta-quiet { flex: 0 0 auto; min-height: 52px; padding: 0 26px; font-size: 17px; font-weight: 700; white-space: nowrap; border-radius: 999px; box-shadow: none; }
+.pc .po-cta svg, .pc .po-cta-quiet svg { display: none; }
+.pc .po-cta { border: 2px solid #be185d; background: #be185d; color: #fff; }
+.pc .po-cta:hover { background: #9d174d; border-color: #9d174d; }
+.pc .po-cta-quiet { border: 2px solid #efe6e8; background: #fff; color: #15202f; }
+.pc .po-cta-quiet:hover { background: #faf0f3; }
+
+/* ── Sections are flat ─────────────────────────────────────── */
+.pc .app-card { min-width: 0; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.pc-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+.pc .po-h2, .pc .app-section-title { margin: 0; font-family: inherit; font-size: 26px; line-height: 1.25; font-weight: 700; letter-spacing: 0; color: #15202f; }
+.pc .app-card-header { flex-direction: column; align-items: flex-start; gap: 8px; margin: 0 0 8px; padding: 0; border: 0; }
+.pc .app-card-header > div { flex-wrap: wrap; min-width: 0; }
+.pc .section-tile { display: none; }
+.pc .section-meta, .pc .section-meta * { font-size: 16px !important; color: #5a687b; white-space: normal; opacity: 1; }
+.pc .app-card > footer, .pc .app-card > div[class*="mt-3"] { margin-top: 12px; padding-top: 0; border-top: 0 !important; }
+.pc .app-card footer, .pc .app-card footer *, .pc .app-card > div[class*="mt-3"], .pc .app-card > div[class*="mt-3"] * { font-size: 16px !important; line-height: 1.65; color: #5a687b; }
+.pc .app-card .inline-flex:has(> svg[width="11"]) { display: block; }
+.pc .app-card svg[width="11"] { display: none; }
+.pc .app-section-toggle { min-height: 44px; font: inherit; }
+.pc .section-collapse-chevron { color: #9d174d; }
+
+/* Shared cards size their own text in small utilities and inline styles. */
+.pc .app-card p, .pc .app-card li, .pc .app-card td, .pc .app-card th, .pc .app-card label, .pc .app-card input, .pc .app-card select, .pc .app-card textarea { font-size: max(16px, 1em); }
+.pc .app-card [class*="text-[0."], .pc .app-card [class*="text-[11px]"], .pc .app-card .text-xs, .pc .app-card .text-sm { font-size: 16px !important; }
+.pc .app-card .inline-flex, .pc .app-card .tabular-nums { font-size: max(15px, 0.875em) !important; }
+.pc .app-card li, .pc .app-card li span { font-size: 16px !important; }
+.pc .today-summary-sentence { margin: 0 0 8px; font-size: 18px; line-height: 1.65; color: #3f4e63; }
+
+/* ── Time range ────────────────────────────────────────────── */
+.pc .po-seg button { min-height: 44px; font-size: 16px; }
+.pc .po-seg button[aria-pressed="true"] { font-weight: 700; }
+
+/* ── Review queue ──────────────────────────────────────────── */
+.pc-review-group .pc-h3 { margin: 20px 0 10px; font-size: 18px; color: #3f4e63; }
+.pc-review-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.pc .pc-review-list li { padding: 18px 22px; background: #fff; border: 2px solid #efe6e8; border-radius: 20px; font-size: 19px !important; line-height: 1.65; color: #15202f; overflow-wrap: anywhere; }
+.pc .pc-review-list .pc-review-count { display: block; margin-top: 6px; font-size: 16px !important; color: #3f4e63; }
+
+/* ── At a glance and record coverage ───────────────────────── */
+.pc-glance { min-width: 0; }
+.pc-glance .po-section { gap: 0; }
+.pc-glance .po-section + .po-section { padding-top: 0; border: 0; }
+.pc-glance .po-section-head { align-items: flex-start; }
+.pc-glance .po-section-head p { margin-top: 0; }
+.pc-glance .po-h2 { margin-bottom: 8px; }
+.pc-glance .po-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.pc-glance .po-summary-item { min-width: 0; padding: 16px; background: #fff; border: 2px solid #efe6e8; border-radius: 20px; }
+.pc-glance .po-summary-value { font-size: 38px; font-weight: 700; line-height: 1.1; color: #15202f; letter-spacing: 0; }
+.pc-glance .po-summary-label { margin: 0; font-size: 16px; color: #3f4e63; overflow-wrap: anywhere; }
+.pc-glance .po-meta { font-size: 16px; color: #5a687b; }
+.pc-glance .po-summary-integrity { margin-top: 12px; display: grid; gap: 8px; }
+.pc-glance .po-summary-integrity p { margin: 0; font-size: 16px; color: #5a687b; max-width: 60ch; }
+.pc-coverage p { margin: 0; }
+.pc-coverage-list { margin: 8px 0 0; display: grid; }
+.pc-coverage-list > div { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid #efe6e8; }
+.pc-coverage-list dt { font-weight: 700; font-size: 16px; }
+.pc-coverage-list dd { margin: 0; font-size: 16px; color: #3f4e63; }
+.pc-coverage-next { display: block; margin-top: 2px; color: #5a687b; }
+.pc-details { margin-top: 12px; font-size: 16px; }
+.pc-details summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; color: #9d174d; font-weight: 700; }
+.pc-steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; color: #3f4e63; font-size: 16px; }
+
+/* ── Labs: one card per test ───────────────────────────────── */
+.pc-labs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.pc .lab-card { overflow: visible; display: flex; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; padding: 24px; background: #fff; border: 2px solid #efe6e8 !important; border-radius: 24px; box-shadow: none; }
+.pc .lab-card-bar, .pc .lab-card-label-icon, .pc .lab-card-spark { display: none; }
+.pc .lab-card-header, .pc .lab-card-meta-row { display: contents; }
+.pc .lab-card-label { order: 1; padding: 0; font-size: 20px; font-weight: 700; letter-spacing: 0; text-transform: none; color: #15202f; }
+.pc .lab-card-status { order: 2; padding: 2px 12px; border: 0; border-radius: 999px; font-size: 15px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.pc .lab-card-info-wrap { order: 3; margin-left: auto; }
+.pc .lab-card-info-trigger { width: 44px; height: 44px; margin: -10px -10px -10px 0; }
+.pc .lab-card-info-trigger svg { width: 18px; height: 18px; }
+.pc .lab-card-info-popover, .pc .lab-card-info-popover p { font-size: 15px; line-height: 1.5; }
+.pc .lab-card-value-row { order: 4; flex: 1 1 100%; display: flex; align-items: baseline; gap: 8px; padding: 0; }
+.pc .lab-card-value { font-size: 44px; font-weight: 700; line-height: 1.1; color: #15202f; font-variant-numeric: tabular-nums; }
+.pc .lab-card-unit { font-size: 18px; color: #3f4e63; }
+.pc .lab-card-delta { order: 5; padding: 0; font-size: 16px; font-weight: 400; color: #5a687b; }
+.pc .lab-card-delta svg { display: none; }
+.pc .lab-card-footer { order: 6; margin: 0; padding: 0; border: 0; }
+.pc .lab-card-delta + * { margin: 0; }
+.pc .lab-card-delta::after { content: "\00a0·"; }
+.pc .lab-card-footer, .pc .lab-card-footer * { font-size: 16px; color: #5a687b; }
+.pc-lab-plot { order: 7; flex: 1 1 100%; min-width: 0; margin-top: 12px; }
+.pc-question { margin: 12px 0 0; padding: 4px 16px; background: #fdf4e7; border-radius: 14px; }
+.pc-question summary { color: #7c3d06; }
+.pc-question p { margin: 0 0 12px; color: #3f4e63; font-size: 16px; }
+.pc-table-scroll { overflow-x: auto; }
+.pc-lab-table { width: 100%; margin-top: 6px; border-collapse: collapse; font-size: 16px; }
+.pc-lab-table thead th { padding: 8px 6px; text-align: left; font-weight: 700; color: #5a687b; border-bottom: 2px solid #efe6e8; }
+.pc-lab-table tbody th, .pc-lab-table td { padding: 10px 6px; text-align: left; font-weight: 400; border-bottom: 1px solid #efe6e8; font-variant-numeric: tabular-nums; }
+.pc .lab-trend-gap-note, .pc .po-chart-note { margin: 0; font-size: 16px; line-height: 1.65; color: #5a687b; }
+.pc .recharts-surface { overflow: visible; }
+
+/* ── Symptoms ──────────────────────────────────────────────── */
+.pc-sheet { min-width: 0; padding: 24px; background: #fff; border: 2px solid #efe6e8; border-radius: 24px; }
+.pc .po-chart-figure { margin: 0; display: grid; gap: 12px; }
+.pc .po-legend { font-size: 16px; color: #5a687b; }
+.pc .po-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.pc .po-legend-item svg { display: block; flex: none; }
+.pc .po-disclosure { font-size: 16px; }
+.pc .po-disclosure summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; color: #9d174d; font-weight: 700; }
+.pc .po-table { font-size: 16px; }
+.pc .po-table caption { font-size: 15px; text-align: left; color: #3f4e63; }
+.pc .po-tooltip, .pc .po-tooltip * { font-size: 14px; }
+.pc .symptom-summary-name { font-size: 16px; }
+.pc .state-pane span, .pc .po-chart-empty p { font-size: 16px; }
+.pc .po-chart-empty-hint { font-size: 16px !important; }
+.pc .symptom-view-all, .pc .app-card-header button { min-height: 44px; }
+.pc .symptom-summary-meta, .pc .symptom-summary-eyebrow, .pc .symptom-date, .pc .symptom-view-all { font-size: 15px; letter-spacing: 0; text-transform: none; }
+.pc .symptom-fact-label, .pc .symptom-fact-body .symptom-summary-meta { font-size: 15px; }
+.pc .symptom-summary-bar .tabular-nums { font-size: 15px !important; }
+.pc .symptom-summary-bar-label { font-size: 15px; letter-spacing: 0; text-transform: none; }
+
+/* ── Timeline: dated rows, not boxes ───────────────────────── */
+.pc .timeline-root { gap: 0; }
+.pc .timeline-date-group { margin: 0; }
+.pc .timeline-date-header { padding: 16px 0 0; border: 0; }
+.pc .timeline-date-primary { font-size: 16px; font-weight: 400; color: #5a687b; letter-spacing: 0; text-transform: none; }
+.pc .timeline-date-secondary, .pc .timeline-date-count { font-size: 15px; font-weight: 400; color: #5a687b; letter-spacing: 0; text-transform: none; }
+.pc .timeline-events { gap: 0; }
+.pc .timeline-event-open { grid-template-columns: minmax(0, 1fr); padding: 4px 0 16px; background: none; border: 0; border-bottom: 1px solid #efe6e8; border-radius: 0; }
+.pc .timeline-event-open:hover { background: #faf0f3; border-color: #efe6e8; }
+.pc .timeline-event-icon { display: none; }
+.pc .timeline-event-headline { flex-wrap: wrap; }
+.pc .timeline-event-headline > span:not(.timeline-event-title) { font-size: 14px !important; line-height: 1.4; }
+.pc .timeline-event-title { font-size: 18px; font-weight: 400; color: #15202f; }
+.pc .timeline-event-summary { font-size: 18px; color: #15202f; }
+.pc .timeline-event-body .text-xs { flex-wrap: wrap; }
+.pc .timeline-event-body .text-xs > * { flex: 0 0 auto; }
+.pc .timeline-view-all { min-height: 52px; margin-top: 14px; padding: 0 26px; border: 2px solid #efe6e8; border-radius: 999px; background: #fff; font-size: 17px; font-weight: 700; color: #15202f; }
+
+/* ── Medications: "name · dose" over "date · frequency", as a real table ─ */
+.med-stack { display: block; width: 100%; margin-top: 12px; }
+.med-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.med-stack tbody { display: grid; gap: 12px; }
+.med-stack tr { display: flex; flex-wrap: wrap; column-gap: 0.4em; padding: 16px 20px; background: #fff; border: 2px solid #efe6e8; border-radius: 20px; }
+.pc .app-card .med-stack th, .pc .app-card .med-stack td { padding: 0; text-align: left; font-weight: 400; font-size: 16px; color: #5a687b; }
+.pc .app-card .med-stack td.med-stack-name { order: 1; font-size: 18px; font-weight: 700; color: #15202f; }
+.pc .app-card .med-stack td[data-label="Dose"] { order: 2; font-size: 18px; color: #15202f; }
+.pc .app-card .med-stack td[data-label="Dose"]::before { content: "· "; }
+.pc .app-card .med-stack-date { order: 3; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.med-stack tr::after { content: ""; order: 2; flex: 1 1 100%; height: 0; }
+.pc .app-card .med-stack td[data-label="Frequency"] { order: 4; }
+.pc .app-card .med-stack td[data-label="Frequency"]::before { content: "· "; }
+.med-stack-more { margin: 8px 0 0; color: #5a687b; font-size: 15px; }
+
+/* ── Research notice and page end ──────────────────────────── */
+.pc-research .app-card { padding: 20px 24px; background: #faf0f3; border-radius: 20px; }
+.pc .pc-research .app-section-title { font-size: 22px; }
+.pc-research p { font-size: 17px !important; color: #3f4e63 !important; }
+.pc-foot { color: #5a687b; font-size: 16px; }
+.pc-foot svg { display: none; }
+.pc-foot p { margin: 0; }
+.pc-foot p + p { margin-top: 8px; }
+
+/* ── Bottom navigation once the top links no longer fit ────── */
+@media (max-width: 900px) {
+  .app-top-nav { display: none; }
+  .app-shell--calm .app-topbar-actions { margin-left: auto; }
+  .app-bottom-nav {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); flex: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: #fff; border-top: 1px solid #efe6e8;
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .app-bottom-nav svg { display: none; }
+  .app-bottom-nav a {
+    display: grid; place-items: center; min-height: 60px; padding: 4px 2px;
+    color: #3f4e63; text-decoration: none; font-size: 15px; line-height: 1.2; text-align: center;
+  }
+  .app-bottom-nav a[aria-current] { color: #9d174d; font-weight: 700; }
+}
+
+@media (max-width: 700px) {
+  .app-bottom-nav { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.25fr); }
+  .app-shell--calm .app-topbar { padding: 8px 18px; }
+  .app-topbar-note { text-align: left; }
+  .pc-column { padding: 24px 18px 120px; gap: 40px; }
+  .pc .po-display { font-size: 32px; }
+  .pc .lab-card, .pc-sheet { padding: 18px; }
+  .pc .lab-card-value { font-size: 38px; }
+  .pc-glance .po-summary { grid-template-columns: minmax(0, 1fr); }
+  .pc .po-seg { display: flex; flex-wrap: wrap; border-radius: 22px; }
+  .pc .po-seg button { flex: 1 1 auto; padding: 8px 12px; }
+  .pc-coverage-list > div { grid-template-columns: minmax(0, 1fr); }
+  .pc .symptom-row--compact { display: grid; grid-template-columns: 48px minmax(0, 1fr) 104px; align-items: center; gap: 8px; }
+  .pc .symptom-row--compact .symptom-info { min-width: 0; }
+}
+
+/* Very narrow: the name, pill and menu keep one row, so the page keeps its height. */
+@media (max-width: 360px) {
+  .app-shell--calm .app-topbar { display: grid; grid-template-columns: auto minmax(0, 1fr) 44px; padding: 6px 12px; }
+  .app-shell--calm .app-topbar-actions { justify-self: end; min-width: 0; }
+  .app-shell--calm .app-safety-pill { padding: 2px 10px; white-space: normal; text-align: center; line-height: 1.2; }
+  .app-topbar-note { grid-column: 1 / -1; }
+}
+
+/* Short screens (200% zoom, landscape phones): the bars stay, and take less height. */
+@media (max-height: 600px) {
+  .app-bottom-nav a { min-height: 44px; }
+  .app-shell--calm .app-topbar { padding-block: 2px 4px; }
+}

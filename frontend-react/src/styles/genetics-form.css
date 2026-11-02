@@ -1,0 +1,12 @@
+/* Inline save error on the genetics forms. Imported by GeneticCounselingPanel.tsx. */
+
+.genetics-form-error {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}

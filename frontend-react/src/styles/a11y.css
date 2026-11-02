@@ -1,0 +1,190 @@
+/* Accessibility baseline.
+ *
+ * A focused module rather than more lines in index.css, which is frozen at its
+ * current size by the shrink-only LOC ratchet. Everything here was added to
+ * close defects measured against the running application with axe-core, not
+ * inferred from reading the stylesheet.
+ *
+ * Measured before these rules, signed in as the demo patient:
+ *   - 41 serious colour-contrast violations (13 overview, 22 timeline,
+ *     6 support), all tracing to --text-faint at #9ca3af, which scored
+ *     2.30-2.54:1 against the four surfaces it is used on. That token is now
+ *     #5b6472 in index.css: 5.98:1 on white, 5.58 sidebar, 5.60 page,
+ *     5.42 surface2 - clear of the 4.5:1 AA threshold on all of them.
+ *   - The sidebar toggle and every primary nav link fell back to the browser
+ *     default `outline: auto 1px rgb(16,16,16)`. Twelve components defined a
+ *     `:focus-visible` ring; everything else had none.
+ *   - No `prefers-reduced-motion` guard existed anywhere in the stylesheet.
+ */
+
+:root {
+  /* Rose-deep reads as brand rather than browser chrome, and measures 5.13:1
+     at worst against the surfaces a ring can land on - above the 3:1 floor
+     WCAG 2.2 sets for focus appearance. */
+  --focus-ring: var(--rose-deep, #be185d);
+}
+
+/* ─── Keyboard focus ──────────────────────────────────────────────────────
+ * Wrapped in :where() so it carries zero specificity: the twelve existing
+ * rings still win, and this only reaches controls that had nothing. It is
+ * :focus-visible, not :focus, so pointer users see no ring.
+ */
+:where(a[href], area, button, input, select, textarea, summary,
+       [tabindex]:not([tabindex="-1"]), [role="button"], [role="tab"],
+       [role="link"], [role="menuitem"]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Form controls sit flush inside bordered groups whose `overflow: hidden`
+   would clip an offset ring, so theirs sits on the edge. */
+:where(input, select, textarea):focus-visible {
+  outline-offset: 0;
+}
+
+/* ─── Clinical boundary: never clipped ────────────────────────────────────
+ * The disclaimer is safety copy, so no width may remove words from it. The
+ * icon, the "Clinical boundary" eyebrow and the chevron are all
+ * `flex-shrink: 0`; side by side at 390px they left the text roughly 115px -
+ * narrower than the word "Engineering" - and `text-overflow: ellipsis` in
+ * index.css then rendered it as
+ *   "Enginee... prototype only. Not clinically validated. Syntheti... only ML
+ *    signals."
+ * The clipping properties are gone from index.css. This gives the text its own
+ * full-width row below the eyebrow once the row is too narrow to share.
+ */
+@media (max-width: 640px) {
+  .clinical-strip-head {
+    flex-wrap: wrap;
+  }
+  .clinical-strip-text {
+    flex: 1 0 100%;
+    order: 3;
+  }
+  .clinical-strip-chevron {
+    margin-left: auto;
+  }
+  /* The 38px indent aligned under text that is no longer on that row. */
+  .clinical-strip-detail {
+    padding-left: 14px;
+  }
+}
+
+/* ─── Reduced motion ──────────────────────────────────────────────────────
+ * Near-zero rather than `none` so transitionend/animationend listeners still
+ * fire; code waiting on one will not hang.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Semantic headings that must not change appearance ───────────────────
+ * The two model-explanation envelopes used a <div aria-label="...">, which is
+ * invalid: aria-label is not allowed on a div with no role, so the name was
+ * dropped. They are now <section aria-labelledby> pointing at the heading that
+ * was already visible inside them, which also makes the name match the visible
+ * text. These rules keep that heading rendering exactly as the <strong> did,
+ * so the fix is semantic only.
+ */
+.model-explanation-envelope__title {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 700;
+  color: inherit;
+}
+
+/* ─── Record-integrity and patient-language furniture ─────────────────────
+ * px rather than rem: `:root` is 14px, so rem renders 12.5% under its nominal
+ * size here. See styles/lab-trends.css for how that produced 10.9px tables.
+ */
+
+/* Rows the frontend could not tell apart, disclosed under the counts rather
+   than folded into them or dropped. */
+.po-summary-integrity {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.po-summary-integrity p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  max-width: 88ch;
+}
+
+/* The patient-facing restatement under each automatically flagged item. */
+.review-list-suggestion {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.review-automatic-note {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  max-width: 88ch;
+}
+
+/* Programmatic focus target of the skip link; it is not a control. */
+.app-main:focus { outline: none; }
+
+/* Hidden until it receives keyboard focus, then drawn over the shell. */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--text-strong);
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+.skip-link:focus-visible {
+  transform: none;
+  outline: 2px solid var(--rose);
+  outline-offset: 2px;
+}
+
+/* The collapse control inside a card heading: looks like the heading, acts as a button. */
+.app-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.app-section-toggle:focus-visible {
+  outline: 2px solid var(--rose);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* Keeps the sidebar toggle a usable target when the rail is narrow. */
+.app-sidebar-toggle { flex-shrink: 0; }
+
+/* Scrolling the tool menu must not scroll the page behind it. */
+.composer-tool-popover { overscroll-behavior: contain; }

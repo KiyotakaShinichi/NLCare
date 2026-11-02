@@ -19,6 +19,10 @@ import {
 import type { ChatMessage as ChatMessageType, ChatStreamHandlers, SavedAction } from "../../types/api";
 import { ChatMessageBubble } from "./chat/ChatMessageBubble";
 import { usePipelineStatus } from "./chat/usePipelineStatus";
+import { isOutcomeUnknown } from "../../api/client.patient";
+import { looksLikeConfirmationOrCancel } from "../../lib/chatConfirmation";
+import type { ConfirmationHold } from "../../pages/patient/useChatOutcomeHold";
+import "../../styles/chat-notices.css";
 
 interface ChatPanelProps {
   messages: ChatMessageType[];
@@ -28,6 +32,20 @@ interface ChatPanelProps {
   onSavedActions?: (actions: SavedAction[]) => void;
   /** Undo a provenance-stamped write created by this patient. */
   onUndoAction?: (auditId: number) => Promise<void>;
+  /**
+   * Called when a turn that could have confirmed or cancelled a record preview
+   * ended with an unknown outcome (timeout, dropped connection). Carries the ids
+   * of the preview cards on screen, which may already have been acted on.
+   */
+  onOutcomeUnknown?: (info: { pendingMessageIds: string[] }) => void;
+  /**
+   * While set, nothing can be sent from this panel (composer, Enter, quick
+   * actions, card buttons) and a recovery notice is shown. The parent owns it so
+   * it survives the panel remounting when the report refreshes.
+   */
+  confirmationHold?: ConfirmationHold | null;
+  /** Preview cards that may already have been acted on; they never offer buttons. */
+  quarantinedMessageIds?: ReadonlySet<string>;
   loading?: boolean;
   disabled?: boolean;
   placeholder?: string;
@@ -36,7 +54,22 @@ interface ChatPanelProps {
    *  composer reads as: [+] [textarea] [send].  Keeping it as a slot lets the
    *  clinician chat reuse this component without the patient-only tools. */
   composerLeading?: React.ReactNode;
+  /**
+   * Accessible name for the scrolling transcript. When given, the transcript
+   * becomes a focusable, named region so keyboard users can reach and scroll
+   * it (axe `scrollable-region-focusable`). Opt-in so that surfaces which do
+   * not pass it - the clinician chat - keep their current tab order exactly.
+   *
+   * `role="region"`, not `role="log"`: `log` is implicitly
+   * `aria-live="polite"`, which would make screen readers announce every
+   * streamed token update. That would change how the chat behaves, not just
+   * how it is reached.
+   */
+  scrollRegionLabel?: string;
 }
+
+/** Shown when an ordinary question (not a confirm or cancel) got no reply. It claims nothing about records. */
+const UNANSWERED_TURN_MESSAGE = "That message didn't get a reply. You can send it again.";
 
 const QUICK_PROMPTS: { icon: typeof Activity; label: string; prompt: string }[] = [
   { icon: Activity,     label: "Log a symptom",        prompt: "I would like to log a new symptom. Help me record it." },
@@ -53,7 +86,7 @@ const QUICK_PROMPTS: { icon: typeof Activity; label: string; prompt: string }[] 
  */
 const AUTO_SCROLL_FUDGE_PX = 80;
 
-function ChatPanelInner({ messages: initialMessages, onSend, onSendStream, onSavedActions, onUndoAction, disabled, placeholder, composerLeading }: ChatPanelProps) {
+function ChatPanelInner({ messages: initialMessages, onSend, onSendStream, onSavedActions, onUndoAction, onOutcomeUnknown, confirmationHold, quarantinedMessageIds, disabled, placeholder, composerLeading, scrollRegionLabel }: ChatPanelProps) {
   // ── Normalise the parent prop once per change.
   const normalisedParentMessages = useMemo(
     () => normaliseMessages(initialMessages),
@@ -152,9 +185,14 @@ function ChatPanelInner({ messages: initialMessages, onSend, onSendStream, onSav
     node.style.height = `${Math.min(max, node.scrollHeight)}px`;
   }, [input]);
 
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; });
+
   const send = useCallback(async (text?: string) => {
     const value = (text ?? input).trim();
-    if (!value || sending) return;
+    // Every send path ends here (Enter, button, starter prompts, card actions),
+    // so this is the single place that guarantees nothing is sent while held.
+    if (!value || sending || confirmationHold) return;
     setInput("");
     setError(null);
     setStreamStage(null);
@@ -217,17 +255,34 @@ function ChatPanelInner({ messages: initialMessages, onSend, onSendStream, onSav
     } catch (e: unknown) {
       // Pull the failed turn back out of the buffer and surface a friendly
       // inline error.  The underlying error is logged in dev for diagnosis.
-      const friendlyMessage = (e instanceof Error && e.message) ? e.message : "Something went wrong sending that message.";
+      // A turn that could have confirmed or cancelled a preview and ended with an
+      // unknown outcome gets the "check your records" message. An ordinary
+      // question gets a plain one: it cannot have written anything.
+      const outcomeUnknown = isOutcomeUnknown(e);
+      const couldHaveWritten = outcomeUnknown && looksLikeConfirmationOrCancel(value);
+      const friendlyMessage = outcomeUnknown && !couldHaveWritten
+        ? UNANSWERED_TURN_MESSAGE
+        : (e instanceof Error && e.message) ? e.message : "Something went wrong sending that message.";
       if (import.meta.env?.DEV) {
         console.error("[ChatPanel] send failed:", e);
       }
       setError(friendlyMessage);
+      // No retry, no success toast: the request may still be running on the
+      // server. Only a turn that could have confirmed or cancelled a preview
+      // freezes the chat (see useChatOutcomeHold); an ordinary question that
+      // timed out just gets the truthful message.
+      if (couldHaveWritten) {
+        const pendingMessageIds = messagesRef.current
+          .filter((m) => !m.id.startsWith("local_") && m.saved_actions.some((a) => a.type === "pending_record_confirmation"))
+          .map((m) => m.id);
+        onOutcomeUnknown?.({ pendingMessageIds });
+      }
       setLocalMessages((prev) => prev.filter((m) => m.id !== userId && m.id !== assistantId));
     } finally {
       setStreamStage(null);
       setSending(false);
     }
-  }, [input, sending, onSend, onSendStream, onSavedActions]);
+  }, [input, sending, confirmationHold, onSend, onSendStream, onSavedActions, onOutcomeUnknown]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -246,7 +301,13 @@ function ChatPanelInner({ messages: initialMessages, onSend, onSendStream, onSav
   return (
     <div className="chat-shell">
       {/* Scrollable message area */}
-      <div ref={scrollRef} className="chat-scroll">
+      <div
+        ref={scrollRef}
+        className="chat-scroll"
+        {...(scrollRegionLabel
+          ? { tabIndex: 0, role: "region", "aria-label": scrollRegionLabel }
+          : {})}
+      >
         <div className="chat-stream">
           {isEmpty && (
             <div className="chat-empty">
@@ -284,6 +345,9 @@ function ChatPanelInner({ messages: initialMessages, onSend, onSendStream, onSav
               key={msg.id}
               message={msg}
               isLatestAssistant={i === lastAssistantIndex}
+              confirmationPaused={
+                confirmationHold ? "hold" : quarantinedMessageIds?.has(msg.id) ? "quarantine" : undefined
+              }
               registerNode={(node) => { latestAssistantRef.current = node; }}
               onQuickReply={(message) => { void send(message); }}
               onUndoAction={onUndoAction}
@@ -319,27 +383,17 @@ function ChatPanelInner({ messages: initialMessages, onSend, onSendStream, onSav
             </div>
           )}
 
+          {confirmationHold && <OutcomeHoldNotice hold={confirmationHold} />}
+
           {error && (
-            <div
-              className="flex items-start gap-2 text-xs rounded-lg border px-3 py-2"
-              style={{ background: "#fef2f2", borderColor: "#fecaca", color: "#b91c1c" }}
-              role="alert"
-            >
-              <AlertCircle size={13} style={{ marginTop: 1, flexShrink: 0 }} />
-              <span style={{ flex: 1 }}>{error}</span>
+            <div className="chat-notice chat-notice--error" role="alert">
+              <AlertCircle size={16} aria-hidden="true" />
+              <span className="chat-notice-text">{error}</span>
               <button
                 type="button"
+                className="chat-notice-dismiss"
                 onClick={() => setError(null)}
                 aria-label="Dismiss error"
-                style={{
-                  background: "transparent",
-                  border: 0,
-                  color: "#b91c1c",
-                  opacity: 0.7,
-                  cursor: "pointer",
-                  fontSize: "0.74rem",
-                  padding: "0 4px",
-                }}
               >
                 ×
               </button>
@@ -362,15 +416,19 @@ function ChatPanelInner({ messages: initialMessages, onSend, onSendStream, onSav
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={placeholder ?? "Tell me how you are feeling, or ask a question..."}
-              disabled={disabled || sending}
+              placeholder={
+                confirmationHold
+                  ? "Chat is paused until you check your records."
+                  : placeholder ?? "Tell me how you are feeling, or ask a question..."
+              }
+              disabled={disabled || sending || Boolean(confirmationHold)}
               rows={1}
               className="chat-composer-textarea"
             />
             <button
               type="button"
               onClick={() => { void send(); }}
-              disabled={!input.trim() || sending || disabled}
+              disabled={!input.trim() || sending || disabled || Boolean(confirmationHold)}
               className="chat-composer-send"
               aria-label="Send message"
             >
@@ -384,6 +442,39 @@ function ChatPanelInner({ messages: initialMessages, onSend, onSendStream, onSav
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+const HOLD_TEXT: Record<ConfirmationHold["phase"], string> = {
+  idle:
+    "We couldn't confirm whether your last Confirm or Cancel was processed. Chat is paused so the same action isn't sent twice, and the server may still finish it. Refresh to load your latest conversation and records, then look for the entry. Please don't enter the same information again yet.",
+  refreshing: "Checking your latest conversation and records…",
+  refreshed:
+    "Your records are refreshed, but this page can't tell whether the earlier action has finished. If the original entry appears, there is no need to add it again. If it doesn't, it may still be saved a little later, so check once more before you add the same information from the + menu; adding it too soon could create a duplicate.",
+  failed: "We couldn't refresh your records. Check your connection and try again.",
+};
+
+function OutcomeHoldNotice({ hold }: { hold: ConfirmationHold }) {
+  const busy = hold.phase === "refreshing";
+  return (
+    <div className="chat-notice chat-notice--hold" role="status">
+      <AlertCircle size={16} aria-hidden="true" />
+      <span className="chat-notice-text">{HOLD_TEXT[hold.phase]}</span>
+      <button
+        type="button"
+        className="chat-hold-refresh"
+        disabled={busy}
+        aria-busy={busy}
+        onClick={() => { void hold.onRefresh(); }}
+      >
+        {busy ? "Checking…" : "Refresh my records"}
+      </button>
+      {hold.canAcknowledge && (
+        <button type="button" className="chat-hold-refresh" onClick={hold.onAcknowledge}>
+          I've checked my records, resume chat
+        </button>
+      )}
     </div>
   );
 }

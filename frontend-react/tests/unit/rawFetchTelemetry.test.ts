@@ -14,7 +14,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, getAuthenticatedObjectUrl, sendMyChatStream } from "../../src/api/client";
+import { ApiError, OUTCOME_UNKNOWN_MESSAGE, OutcomeUnknownError, getAuthenticatedObjectUrl, sendMyChatStream } from "../../src/api/client";
 import { redactUrlPath } from "../../src/lib/telemetry";
 
 const reportError = vi.hoisted(() => vi.fn());
@@ -62,9 +62,10 @@ describe("streamed chat", () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
-  it("reports a server fault once, as unexpected", async () => {
+  it("reports a server fault once, as unexpected, with the real status", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonError(503, "Support is unavailable")));
-    await expect(sendMyChatStream(MESSAGE)).rejects.toMatchObject({ status: 503 });
+    // The patient is told the outcome is unknown (Milestone 7.7); telemetry still sees the 503.
+    await expect(sendMyChatStream(MESSAGE)).rejects.toBeInstanceOf(OutcomeUnknownError);
 
     const [error, context] = theOnlyReport();
     expect(error).toBeInstanceOf(ApiError);
@@ -83,7 +84,7 @@ describe("streamed chat", () => {
 
   it("reports an error event emitted by the stream", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(sse(["error", { error: "Pipeline failed" }])));
-    await expect(sendMyChatStream(MESSAGE)).rejects.toThrow("Pipeline failed");
+    await expect(sendMyChatStream(MESSAGE)).rejects.toBeInstanceOf(OutcomeUnknownError);
     expect(theOnlyReport()[1]).toMatchObject({
       surface: "api.stream",
       kind: "unexpected",
@@ -96,20 +97,21 @@ describe("streamed chat", () => {
       "fetch",
       vi.fn().mockResolvedValue(sse(["pipeline_stage", { label: "Retrieving" }])),
     );
-    await expect(sendMyChatStream(MESSAGE)).rejects.toThrow("ended without an answer");
+    await expect(sendMyChatStream(MESSAGE)).rejects.toBeInstanceOf(OutcomeUnknownError);
     theOnlyReport();
   });
 
-  it("reports a timed-out turn with the message the user is shown", async () => {
+  it("reports an aborted turn with the unknown-outcome message the user is shown", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("aborted", "AbortError")));
-    await expect(sendMyChatStream(MESSAGE)).rejects.toThrow("timed out");
+    await expect(sendMyChatStream(MESSAGE)).rejects.toThrow(OUTCOME_UNKNOWN_MESSAGE);
     const [error] = theOnlyReport();
-    expect((error as Error).message).toMatch(/timed out/);
+    expect((error as Error).message).toBe(OUTCOME_UNKNOWN_MESSAGE);
+    expect((error as Error).message).not.toMatch(/no record was saved|nothing was saved/i);
   });
 
   it("never attaches the patient's message to the report", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonError(500, "Internal error")));
-    await expect(sendMyChatStream(MESSAGE)).rejects.toBeInstanceOf(ApiError);
+    await expect(sendMyChatStream(MESSAGE)).rejects.toBeInstanceOf(OutcomeUnknownError);
     expect(JSON.stringify(reportError.mock.calls)).not.toContain(MESSAGE);
   });
 });

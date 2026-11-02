@@ -1,0 +1,212 @@
+/* Pearl Rose — NLCare design tokens and the patient overview layout.
+ *
+ * Promoted from the approved A+ design preview. The token block sits on :root
+ * so the clinician, admin and workspace surfaces can adopt the same scale in
+ * later phases without importing this page's layout rules.
+ *
+ * The palette: a pearl is not flat pink but a warm off-white that turns rose
+ * where light collects, so the ground is warm white and blush appears as faint
+ * tinted surfaces and hairlines rather than fills. Rose carries identity and
+ * exactly one primary action per screen; teal carries data; navy/slate carries
+ * hierarchy.
+ *
+ * Contrast measured on --po-bg (#fdfaf9):
+ *   --po-ink    #15202f  16.2:1
+ *   --po-ink-2  #44536a   7.6:1
+ *   --po-ink-3  #5e6d80   5.0:1   (lightest text used)
+ */
+
+:root {
+  --po-bg: #fdfaf9;
+  --po-surface: #ffffff;
+  --po-blush: #faf0f3;
+  --po-blush-2: #f4e3e9;
+  --po-pearl-line: #efe6e8;
+  --po-pearl-line-soft: #f6eef0;
+
+  --po-ink: #15202f;
+  --po-ink-2: #44536a;
+  --po-ink-3: #5e6d80;
+
+  --po-rose: #be185d;
+  --po-rose-deep: #9d174d;
+  --po-teal: #0e7490;
+  --po-teal-soft: #e9f8fa;
+  --po-amber: #b45309;
+  --po-amber-soft: #fdf4e7;
+
+  --po-1: 4px; --po-2: 8px;  --po-3: 12px; --po-4: 16px;
+  --po-5: 24px; --po-6: 36px; --po-7: 56px; --po-8: 80px;
+
+  --po-r: 14px;
+  --po-r-sm: 10px;
+
+}
+
+/* The pearl ground belongs to the page, not to the document: other surfaces
+   keep their own background until they are redesigned in a later phase. */
+.po-surface-ground {
+  background:
+    radial-gradient(1200px 420px at 72% -140px, #fdf1f5 0%, rgba(253, 241, 245, 0) 70%),
+    var(--po-bg);
+  color: var(--po-ink);
+}
+
+/* ─── Type: larger across the board than A ───────────────────────────────── */
+.po-display { font-size: 2.125rem; line-height: 1.12; font-weight: 600; letter-spacing: -0.021em; margin: 0; }
+.po-h2      { font-size: 1.3125rem; line-height: 1.28; font-weight: 600; letter-spacing: -0.012em; margin: 0; }
+.po-h3      { font-size: 1rem; line-height: 1.35; font-weight: 600; margin: 0; }
+.po-body    { font-size: 1.0625rem; line-height: 1.62; color: var(--po-ink-2); margin: 0; max-width: 68ch; }
+.po-small   { font-size: 0.9375rem; line-height: 1.55; color: var(--po-ink-2); margin: 0; }
+.po-meta    { font-size: 0.875rem; line-height: 1.5; color: var(--po-ink-3); margin: 0; }
+
+/* Wider measure: A used 1180. */
+.po-page {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: var(--po-5) var(--po-6) var(--po-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--po-7);
+}
+
+.po-flag {
+  position: sticky; top: 0; z-index: 5;
+  background: #1e3a5f; color: #fff;
+  font-size: 0.8125rem; padding: 8px var(--po-6); letter-spacing: 0.01em;
+}
+
+/* ─── Safety boundary ────────────────────────────────────────────────────── */
+.po-boundary {
+  display: flex; gap: var(--po-3); align-items: flex-start;
+  background: var(--po-blush);
+  border: 1px solid var(--po-blush-2);
+  border-radius: var(--po-r);
+  padding: var(--po-4) var(--po-5);
+}
+.po-boundary svg { color: var(--po-rose); flex-shrink: 0; margin-top: 3px; }
+.po-boundary div { min-width: 0; }
+.po-boundary strong { display: block; color: var(--po-rose-deep); font-size: 0.9375rem; margin-bottom: 3px; }
+.po-boundary p { margin: 0; color: #8a2350; font-size: 0.9375rem; line-height: 1.55; max-width: 92ch; }
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.po-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--po-5); flex-wrap: wrap; }
+.po-header-id { min-width: 0; display: flex; flex-direction: column; gap: var(--po-2); }
+.po-eyebrow { font-size: 0.875rem; color: var(--po-ink-3); margin: 0; }
+.po-facts { display: flex; flex-wrap: wrap; gap: var(--po-1) var(--po-3); }
+.po-fact { font-size: 0.9375rem; color: var(--po-ink-2); }
+.po-fact + .po-fact::before { content: "·"; margin-right: var(--po-3); color: var(--po-blush-2); }
+.po-actions { display: flex; align-items: center; gap: var(--po-3); flex-wrap: wrap; }
+
+.po-cta {
+  display: inline-flex; align-items: center; gap: var(--po-2);
+  background: var(--po-rose); color: #fff; border: 0; border-radius: 999px;
+  padding: 12px 22px; font-size: 0.9375rem; font-weight: 600; cursor: pointer; min-height: 46px;
+  box-shadow: 0 6px 18px rgba(190, 24, 93, 0.18);
+}
+.po-cta:hover { background: var(--po-rose-deep); }
+.po-cta-quiet {
+  display: inline-flex; align-items: center; gap: var(--po-2);
+  background: var(--po-surface); color: var(--po-ink-2);
+  border: 1px solid var(--po-pearl-line); border-radius: 999px;
+  padding: 12px 20px; font-size: 0.9375rem; font-weight: 500; cursor: pointer; min-height: 46px;
+}
+.po-cta-quiet:hover { border-color: var(--po-blush-2); color: var(--po-ink); }
+
+/* ─── Range control (from B) ─────────────────────────────────────────────── */
+.po-seg { display: inline-flex; background: var(--po-blush); border-radius: 999px; padding: 4px; gap: 3px; }
+.po-seg button {
+  border: 0; background: none; cursor: pointer; border-radius: 999px;
+  padding: 9px 18px; font-size: 0.9375rem; color: var(--po-ink-2); min-height: 40px;
+}
+.po-seg button[aria-pressed="true"] {
+  background: var(--po-surface); color: var(--po-ink); font-weight: 600;
+  box-shadow: 0 1px 3px rgba(21, 32, 47, 0.1);
+}
+
+/* ─── Sections: separated by space and one hairline, not by boxes ────────── */
+.po-section { display: flex; flex-direction: column; gap: var(--po-4); }
+.po-section + .po-section { border-top: 1px solid var(--po-pearl-line-soft); padding-top: var(--po-7); }
+.po-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--po-4); flex-wrap: wrap; }
+.po-section-head > div { min-width: 0; }
+.po-section-head p { margin-top: 4px; }
+
+/* ─── Summary figures ────────────────────────────────────────────────────── */
+.po-summary { display: flex; flex-wrap: wrap; gap: var(--po-8); }
+.po-summary-item { min-width: 150px; }
+.po-summary-value { font-size: 2rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; }
+.po-summary-value small { font-size: 0.9375rem; font-weight: 500; color: var(--po-ink-3); margin-left: 6px; }
+.po-summary-label { font-size: 0.9375rem; color: var(--po-ink-3); margin-top: 6px; }
+
+/* ─── Chart stage: the symptom plot is the hero ──────────────────────────── */
+.po-stage {
+  background: var(--po-surface);
+  border-radius: var(--po-r);
+  padding: var(--po-5) var(--po-5) var(--po-4);
+  box-shadow: 0 1px 2px rgba(21, 32, 47, 0.04), 0 10px 30px -18px rgba(190, 24, 93, 0.22);
+}
+.po-sparse-note {
+  display: inline-flex; align-items: center; gap: var(--po-2);
+  background: var(--po-blush); color: var(--po-rose-deep);
+  border-radius: 999px; padding: 6px 14px; font-size: 0.875rem;
+}
+
+/* ─── Two-up: activity beside discussion topics, no dense rail ───────────── */
+.po-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: var(--po-6); }
+
+.po-list { list-style: none; margin: 0; padding: 0; }
+.po-list li { display: flex; gap: var(--po-3); padding: var(--po-3) 0; border-bottom: 1px solid var(--po-pearl-line-soft); }
+.po-list li:last-child { border-bottom: 0; }
+.po-mark { width: 34px; height: 34px; border-radius: 11px; flex-shrink: 0; display: grid; place-items: center; background: var(--po-teal-soft); color: var(--po-teal); }
+.po-mark[data-tone="note"] { background: var(--po-blush); color: var(--po-rose-deep); }
+.po-item-title { font-size: 0.9375rem; font-weight: 500; margin: 0; line-height: 1.45; }
+.po-item-meta { font-size: 0.875rem; color: var(--po-ink-3); margin: 2px 0 0; }
+
+.po-link { background: none; border: 0; padding: 8px 2px; cursor: pointer; font-size: 0.9375rem; color: var(--po-teal); font-weight: 500; min-height: 40px; }
+.po-link:hover { color: #0b5a71; text-decoration: underline; }
+
+.po-note { font-size: 0.875rem; color: var(--po-ink-3); line-height: 1.55; border-left: 2px solid var(--po-blush-2); padding-left: var(--po-3); margin: 0; max-width: 78ch; }
+
+/* ─── Explore the rest of the record ─────────────────────────────────────── */
+.po-explore { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--po-3); }
+.po-explore a {
+  display: flex; align-items: center; gap: var(--po-3);
+  background: var(--po-surface); border: 1px solid var(--po-pearl-line);
+  border-radius: var(--po-r-sm); padding: var(--po-4); min-height: 56px;
+  color: var(--po-ink); font-size: 0.9375rem; font-weight: 500; text-decoration: none;
+}
+.po-explore a:hover { border-color: var(--po-blush-2); background: var(--po-blush); }
+.po-explore svg { color: var(--po-ink-3); flex-shrink: 0; }
+
+@media (max-width: 900px) {
+  .po-page { padding: var(--po-4) var(--po-4) var(--po-7); gap: var(--po-6); }
+  .po-section + .po-section { padding-top: var(--po-6); }
+  .po-display { font-size: 1.625rem; }
+  .po-summary { gap: var(--po-5); }
+  .po-summary-item { min-width: 128px; }
+  .po-summary-value { font-size: 1.625rem; }
+  .po-header { align-items: stretch; }
+  .po-actions { width: 100%; }
+  .po-cta, .po-cta-quiet { flex: 1; justify-content: center; }
+  .po-seg { width: 100%; }
+  .po-seg button { flex: 1; }
+  .po-stage { padding: var(--po-4) var(--po-3) var(--po-3); }
+}
+
+/* Patient chat accessibility (Milestone 7).
+ *
+ * ChatMessageBubble reads these variables with fallbacks equal to its original
+ * values, so only the patient chat - the one surface wrapped in
+ * `.chat-workspace` - changes. The clinician chat is untouched.
+ *
+ *   --chat-user-bubble   #ec4899 -> #a9144f : white text 3.52:1 -> 7.24:1
+ *   --chat-bubble-font   0.92rem (12.9px)   -> 16px
+ *   --chat-speaker-font  0.72rem (10.1px)   -> 13px, the type floor
+ *
+ * #a9144f is the existing Pearl Rose accent, so no new colour is introduced.
+ */
+.chat-workspace {
+  --chat-user-bubble: #a9144f;
+  --chat-bubble-font: 16px;
+  --chat-speaker-font: 13px;
+}

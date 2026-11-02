@@ -1,5 +1,5 @@
 import type * as Api from "../types/api";
-import { BASE, del, get, getToken, post, reportRequestFailure, responseError } from "./client.transport";
+import { ApiError, BASE, del, get, getToken, isAmbiguousHttpStatus, post, reportRequestFailure, responseError } from "./client.transport";
 
 
 export const getMyReport = () => get<Api.PatientReport>("/me/patient-report");
@@ -12,11 +12,40 @@ export const getMyReportEnrichment = () =>
 export const getMyChatHistory = () =>
   get<{ patient_id: string; messages: import("../types/api").ChatMessage[] }>("/me/chat");
 
-export const sendMyChat = (message: string) =>
-  post<Api.ChatResponse>("/me/chat", { message });
+export const sendMyChat = async (message: string): Promise<Api.ChatResponse> => {
+  try {
+    return await post<Api.ChatResponse>("/me/chat", { message });
+  } catch (error) {
+    throw classifyChatFailure(error);
+  }
+};
 
 export const undoMyConfirmedRecordWrite = (auditId: number) =>
   del<{ message: string; action: import("../types/api").SavedAction }>(`/me/record-write-actions/${auditId}`);
+
+/**
+ * Shown whenever a chat turn fails in a way that leaves the result unknown.
+ *
+ * Aborting `fetch` only disconnects this browser. The server keeps working
+ * (Starlette cannot interrupt the synchronous pipeline) and a confirmed record
+ * write has been observed to persist 64 s after the 45 s abort. So a timeout
+ * or a dropped connection is neither "saved" nor "not saved".
+ */
+export const OUTCOME_UNKNOWN_MESSAGE =
+  "We couldn't confirm whether this action completed. Please check your records before trying again.";
+
+export class OutcomeUnknownError extends Error {
+  readonly outcomeUnknown = true as const;
+
+  constructor(options?: { cause?: unknown }) {
+    super(OUTCOME_UNKNOWN_MESSAGE, options);
+    this.name = "OutcomeUnknownError";
+  }
+}
+
+export function isOutcomeUnknown(error: unknown): error is OutcomeUnknownError {
+  return error instanceof OutcomeUnknownError;
+}
 
 export async function sendMyChatStream(
   message: string,
@@ -45,9 +74,11 @@ async function streamChat(
       body: JSON.stringify({ message }),
       signal: controller.signal,
     });
-    if (!res.ok || !res.body) {
+    if (!res.ok) {
       throw await responseError(res);
     }
+    // Accepted, but nothing to read: the server may still be running the turn.
+    if (!res.body) throw new OutcomeUnknownError();
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -78,30 +109,60 @@ async function streamChat(
                 : undefined,
           };
         } else if (event.name === "error") {
-          throw new Error(String(event.data?.error ?? "Streaming chat failed"));
+          // The pipeline had started - it may have committed a write before
+          // failing - so this is not a refusal. The server's wording is kept
+          // as the cause for telemetry only.
+          throw new OutcomeUnknownError({ cause: new Error(String(event.data?.error ?? "Streaming chat failed")) });
         }
       }
     }
 
     if (!finalAnswer) {
-      throw new Error("Streaming chat ended without an answer.");
+      // The server accepted the request and then closed without a final
+      // answer. It may still have finished the work.
+      throw new OutcomeUnknownError();
     }
     return finalAnswer;
   } catch (error) {
-    const failure =
-      error instanceof DOMException && error.name === "AbortError"
-        ? new Error(
-            "The support response timed out. Please try again; no record was saved by this timed-out turn.",
-            { cause: error },
-          )
-        : error;
+    const failure = classifyChatFailure(error);
     // The stream bypasses `request`, so it reports for itself. The chat
     // message is a patient's own words and is never attached.
-    reportRequestFailure(failure, { method: "POST", path, surface: "api.stream" });
+    // Telemetry records the HTTP status that actually came back, not the fixed
+    // message the patient is shown in its place.
+    const cause = failure instanceof OutcomeUnknownError ? failure.cause : undefined;
+    reportRequestFailure(cause instanceof ApiError ? cause : failure, { method: "POST", path, surface: "api.stream" });
     throw failure;
   } finally {
     window.clearTimeout(timeoutId);
   }
+}
+
+/**
+ * Decide what a failed chat turn proves.
+ *
+ * A 4xx is the server declining the request before it did anything: it passes
+ * through as a definite, sanitised `ApiError`. Everything else leaves the
+ * outcome open, because the backend runs the turn synchronously and keeps going
+ * after a client or a reverse proxy has given up on it:
+ *
+ *  - 408 and any 5xx. A proxy's 502/503/504 only says the proxy stopped
+ *    waiting; even a 500 from the application can be raised after the write was
+ *    committed (cache invalidation, logging).
+ *  - an abort, a failed or dropped connection.
+ *
+ * None of these may be shown as "not saved", retried, or answered with another
+ * Confirm.
+ */
+function classifyChatFailure(error: unknown): unknown {
+  if (error instanceof OutcomeUnknownError) return error;
+  if (error instanceof ApiError) {
+    return isAmbiguousHttpStatus(error.status) ? new OutcomeUnknownError({ cause: error }) : error;
+  }
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return new OutcomeUnknownError({ cause: error });
+  }
+  if (error instanceof TypeError) return new OutcomeUnknownError({ cause: error });
+  return error;
 }
 
 function parseSseEvent(block: string): { name: string; data: Record<string, unknown> } | null {

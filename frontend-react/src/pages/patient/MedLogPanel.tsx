@@ -30,8 +30,12 @@ const cellBorder = { borderBottom: "1px solid var(--border-soft)" };
  * Read-only by design: patients log medications through the chat tool tray or
  * their care team, so this panel never offers inline editing. The empty state
  * says who can add entries rather than implying the patient should.
+ *
+ * `stacked` never scrolls sideways: its stylesheet shows each row as a card, so
+ * every field stays in view. The roles are explicit because `display: block`
+ * removes table semantics in several browsers.
  */
-export function MedLogPanel({ meds }: { meds: MedicationLog[] }) {
+export function MedLogPanel({ meds, stacked = false }: { meds: MedicationLog[]; stacked?: boolean }) {
   // Copy before sorting — mutating the prop array would reorder the caller's
   // report object in place.
   const sorted = [...meds].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
@@ -44,8 +48,37 @@ export function MedLogPanel({ meds }: { meds: MedicationLog[] }) {
     >
       {sorted.length === 0 ? (
         <EmptyPane label="No medications recorded — your care team can add these from the clinician portal." />
+      ) : stacked ? (
+        <>
+          <table className="med-stack" role="table">
+            <caption className="sr-only">Recorded medications, most recent first</caption>
+            <thead role="rowgroup">
+              <tr role="row">
+                {COLUMNS.map((column) => <th key={column.key} role="columnheader" scope="col">{column.label}</th>)}
+              </tr>
+            </thead>
+            <tbody role="rowgroup">
+              {sorted.slice(0, MAX_ROWS).map((med, index) => (
+                <tr role="row" key={`${med.date}-${med.medication}-${index}`}>
+                  <th role="rowheader" scope="row" className="med-stack-date">{med.date?.slice(0, 10)}</th>
+                  <td role="cell" className="med-stack-name">{med.medication}</td>
+                  <td role="cell" data-label="Dose">{med.dose}</td>
+                  <td role="cell" data-label="Frequency">{med.frequency}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {sorted.length > MAX_ROWS && <p className="med-stack-more">+ {sorted.length - MAX_ROWS} more in patient record</p>}
+        </>
       ) : (
-        <div className="overflow-x-auto">
+        // Focusable and announced: a region that scrolls sideways but takes no
+        // focus cannot be scrolled from the keyboard at all.
+        <div
+          className="overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label="Medication log, scrollable sideways"
+        >
           <table
             className="w-full text-[0.86rem]"
             style={{

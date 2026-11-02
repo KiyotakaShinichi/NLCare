@@ -1,13 +1,17 @@
-import { CheckCircle, Info, Activity, FlaskConical, Brain } from "lucide-react";
+import { CheckCircle, Info, Activity, FlaskConical } from "lucide-react";
 import { SectionCard } from "../../components/ui/SectionCard";
 import { RelativeTime } from "../../components/ui/RelativeTime";
 import type { AiSummary, PatientReport } from "../../types/api";
+import { summariseRecords } from "../../lib/recordIntegrity";
+import { PATIENT_SUMMARY_SCOPE_NOTE, monitoringAbsenceCaveat, scopeBackendClaims } from "../../lib/patientLanguage";
 
 interface Props {
   summary: AiSummary | null;
   /** Optional report so the card can emit chips from labs/symptoms. */
   report?: PatientReport | null;
   lastFetchedAt?: number | null;
+  /** Off leaves the summary sentence and its caveat, without the status chips. */
+  showChips?: boolean;
 }
 
 function toArray(v: string | string[] | undefined): string[] {
@@ -62,37 +66,30 @@ function buildChips(report: PatientReport | null | undefined): Chip[] {
     const t = Date.parse(s.date);
     return Number.isFinite(t) && t >= sevenDaysAgo;
   });
-  if (recent.length === 0) {
+  // Distinct ratings, not rows: identical rows would otherwise be counted
+  // separately in a chip the patient reads as "how much have I reported".
+  const recentDistinct = summariseRecords(recent, (s) => s.date).distinct;
+  if (recentDistinct.length === 0) {
     chips.push({ label: "No new symptoms", icon: Activity, tone: "good" });
   } else {
-    const max = Math.max(...recent.map((s) => s.severity ?? 0));
+    const max = Math.max(...recentDistinct.map((s) => s.severity ?? 0));
     chips.push({
-      label: `${recent.length} symptom${recent.length === 1 ? "" : "s"} · top ${max}/10`,
+      label: `${recentDistinct.length} rating${recentDistinct.length === 1 ? "" : "s"} · top ${max}/10`,
       icon: Activity,
       tone: max >= 7 ? "concern" : max >= 4 ? "watch" : "good",
     });
   }
 
-  // Hybrid signal chip — uses the classification decision when available.
-  const hybridDecision = report.hybrid_prediction?.classification?.decision;
-  if (hybridDecision) {
-    const label =
-      hybridDecision === "favorable_pattern" ? "Favorable signal" :
-      hybridDecision === "concerning_pattern" ? "Concerning signal" :
-      hybridDecision === "insufficient_evidence" ? "Insufficient evidence" :
-      "Signal: " + hybridDecision.replace(/_/g, " ");
-    const tone: ChipTone =
-      hybridDecision === "favorable_pattern" ? "good" :
-      hybridDecision === "concerning_pattern" ? "concern" :
-      hybridDecision === "uncertain" ? "watch" : "neutral";
-    chips.push({ label, icon: Brain, tone });
-  }
+  // No research-model chip: "Favorable signal" / "Concerning signal" read as an
+  // assessment of this patient, and the heads are not validated or calibrated.
 
   return chips.slice(0, 3);
 }
 
 function singleSentenceSummary(summary: AiSummary | null): string | null {
-  const items = toArray(summary?.patient_explanation);
+  // Backend-origin sentences such as "logged for clinician review" assert a
+  // delivery this view cannot verify; scope them to what the record shows.
+  const items = toArray(summary?.patient_explanation).map(scopeBackendClaims);
   if (items.length === 0) return null;
   // Take the first sentence of the first bullet so the card stays compact.
   const first = items[0];
@@ -113,9 +110,10 @@ function singleSentenceSummary(summary: AiSummary | null): string | null {
  * are surfaced inside the Hybrid card and the Review queue.  This card
  * is meant to be glanceable.
  */
-export function KeySignalsCard({ summary, report, lastFetchedAt }: Props) {
-  const chips = buildChips(report ?? null);
+export function KeySignalsCard({ summary, report, lastFetchedAt, showChips = true }: Props) {
+  const chips = showChips ? buildChips(report ?? null) : [];
   const sentence = singleSentenceSummary(summary);
+  const caveat = monitoringAbsenceCaveat(report);
   return (
     <SectionCard
       title="Today's summary"
@@ -124,7 +122,7 @@ export function KeySignalsCard({ summary, report, lastFetchedAt }: Props) {
       footer={
         <span className="inline-flex items-center gap-1.5">
           <Info size={11} aria-hidden="true" />
-          Not a diagnosis — for clinician review.
+          Not a diagnosis. {PATIENT_SUMMARY_SCOPE_NOTE}
         </span>
       }
     >
@@ -153,6 +151,7 @@ export function KeySignalsCard({ summary, report, lastFetchedAt }: Props) {
           No AI summary yet — check back after your next clinic visit.
         </p>
       )}
+      {caveat && <p className="today-summary-sentence">{caveat}</p>}
     </SectionCard>
   );
 }

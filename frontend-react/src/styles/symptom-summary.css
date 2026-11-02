@@ -1,0 +1,49 @@
+/* Symptom Log summary: one fact per record, each with its own name, score and date.
+ * Imported by SymptomsTable.tsx, like lab-trends.css: index.css is frozen at its
+ * current size by the shrink-only LOC ratchet. */
+
+.symptom-summary--facts {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+/* Side by side when the card has room, stacked when it does not. */
+.symptom-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.symptom-fact {
+  min-width: 0;
+}
+
+.symptom-fact-label {
+  margin-bottom: 2px;
+  color: var(--text-dim);
+  font-size: max(13px, 0.8rem);
+  font-weight: 600;
+}
+
+.symptom-fact-body {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.symptom-fact-body .symptom-summary-bar {
+  flex: none;
+  max-width: 150px;
+}
+
+.symptom-fact-body .symptom-summary-meta {
+  font-size: max(13px, 0.8rem);
+}
+
+.symptom-severity-missing {
+  color: var(--text-dim);
+  font-size: max(13px, 0.8rem);
+}

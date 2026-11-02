@@ -35,7 +35,7 @@ export function HybridPredictionCard({ hybrid }: Props) {
         <span className="inline-flex items-start gap-1.5">
           <Info size={11} aria-hidden="true" style={{ marginTop: 2, flexShrink: 0 }} />
           <span>
-            <strong>Synthetic engineering signal · Not a clinical prediction · For clinician review.</strong>
+            <strong>Synthetic engineering signal · Not a clinical prediction.</strong>
             {" "}
             {hybrid.claim_boundary}
           </span>
@@ -172,10 +172,15 @@ function RegressionSlot({
 function ScoreBar({ score, band, tone }: { score: number; band: [number, number] | null; tone: string }) {
   const clamped = Math.max(0, Math.min(1, score));
   return (
+    // Hidden from assistive technology rather than given a role: the score and
+    // its uncertainty band are already printed as text directly below this bar
+    // ("Synthetic score: 0.57 ±0.05 band"), so a progressbar role would simply
+    // announce the same number twice - and progressbar cannot express a band.
+    // The aria-label it used to carry was also invalid on a div with no role.
     <div
+      aria-hidden="true"
       className="relative w-full"
       style={{ height: 8, borderRadius: 4, background: "rgba(0,0,0,0.06)", overflow: "hidden" }}
-      aria-label={`Response score ${(score * 100).toFixed(0)} out of 100`}
     >
       {band && (
         <div
